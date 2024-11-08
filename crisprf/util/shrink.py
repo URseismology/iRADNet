@@ -6,7 +6,7 @@ import torch.nn.functional as F
 def shrink(x: torch.Tensor,
            theta: torch.Tensor) -> torch.Tensor:
     """
-    Soft shrinkage function, theta is auto-ReLU-ed.
+    Soft shrinkage function, θ is auto-ReLU-ed.
 
     :math:`sign(x)max(0, |x|-ReLU(θ))`
 
