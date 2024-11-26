@@ -10,7 +10,7 @@ function [tau, q, q1, q0] = get_q_t_Sp(H, Vp, Vs)
 
     %% Parameter setup
 
-    rayP = (0:0.01:0.135); % for Sp （0.098:0.001:0.135)
+    rayP = (0.01:0.01:0.135); % for Sp （0.098:0.001:0.135)
 
     %% Calculate q & tau
 

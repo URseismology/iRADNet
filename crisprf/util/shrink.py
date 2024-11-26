@@ -8,7 +8,7 @@ def shrink(x: torch.Tensor,
     """
     Soft shrinkage function, θ is auto-ReLU-ed.
 
-    :math:`sign(x)max(0, |x|-ReLU(θ))`
+    :math:`sign(x)*max(0, |x|-ReLU(θ))`
 
     Parameters
     ----------
@@ -30,7 +30,7 @@ def shrink_free(x: torch.Tensor,
     """
     Soft shrinkage function.
 
-    :math:`sign(x)max(0, |x|-θ)`
+    :math:`sign(x)*max(0, |x|-θ)`
 
     Parameters
     ----------

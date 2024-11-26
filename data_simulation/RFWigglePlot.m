@@ -49,7 +49,7 @@ function RFWigglePlot(R, t, rayP, epiDist, tPhase, tWin, scale, singlePlot, pws)
     %% Plot pure RF traces with out weighting
 
     if singlePlot
-        figure;
+        figure(2);
         clf;
         set(gcf, 'position', [50, 50, 800, 800]);
 
