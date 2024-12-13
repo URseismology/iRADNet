@@ -41,7 +41,7 @@ def peek(**kwargs):
 
 def heatmap_one_plot(*args: np.ndarray, rng=None):
     N = len(args)
-    fig, axes = plt.subplots(1, N, figsize=(8 * N, 5), dpi=300)
+    fig, axes = plt.subplots(1, N, figsize=(8 * N, 6), dpi=300)
     axes = axes if N > 1 else [axes]
     for v, ax in zip(args, axes):
         sns.heatmap(
@@ -56,7 +56,7 @@ def heatmap_one_plot(*args: np.ndarray, rng=None):
 
 def heatmap(rng=None, **kwargs: np.ndarray):
     for k, v in kwargs.items():
-        if len(v.shape) <= 2:
+        if len(v.shape) != 2:
             continue
         fig, ax = plt.subplots(figsize=(8, 5), dpi=300)
         sns.heatmap(

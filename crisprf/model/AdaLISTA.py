@@ -11,8 +11,8 @@ class AdaLISTA(nn.Module):
     ):
         super().__init__()
 
-        self.A = torch.tensor(A)
-        self.W = torch.tensor(W)
+        self.A = A
+        self.W = W
         self.m, self.n = self.A.shape
 
         self.layers = layers  # Number of layers in the network
@@ -49,10 +49,10 @@ class AdaLISTA(nn.Module):
             # W1, W2 group
             {
                 "params": [self.W1, self.W2],
-                "lr": init_lr * (lr_decay_layer ** (layer - 1)),
+                "lr": init_lr * (lr_decay_layer**layer),
             },
             # Current layer
-            {"params": [self.gamma[layer - 1], self.theta[layer - 1]], "lr": init_lr},
+            {"params": [self.gamma[layer], self.theta[layer]], "lr": init_lr},
         ]
 
         # Stage 2 & 3
@@ -62,7 +62,7 @@ class AdaLISTA(nn.Module):
                 param_groups.append(
                     {
                         "params": [self.gamma[i], self.theta[i]],
-                        "lr": init_lr * (lr_decay_layer ** (layer - i - 1)),
+                        "lr": init_lr * (lr_decay_layer ** (layer - i)),
                     }
                 )
 
@@ -161,3 +161,33 @@ class AdaLISTA(nn.Module):
             tk = t_next
 
         return xk
+
+
+def adalista(
+    m0: torch.Tensor,
+    y_freq: torch.Tensor,
+    kernels: torch.Tensor,
+    nt: int,
+    ilow: int,
+    ihigh: int,
+    maxiter: int,
+    n_layers: int,
+    device: torch.device = torch.device("cpu"),
+    **_,
+):
+    model = AdaLISTA()
+    for l in range(n_layers):
+        epoch = 0
+        batch_losses = []
+
+        for stage in (1, 2, 3):
+            optimizer = model.get_optimizer(
+                layer=l,
+                stage=stage,
+                init_lr=1e-2,
+                lr_decay_layer=0.3,
+                lr_decay_stage2=0.2,
+                lr_decay_stage3=0.02,
+            )
+
+        pass
