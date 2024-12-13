@@ -15,6 +15,7 @@ class RFData(TypedDict):
     t: torch.Tensor  # (1, 1000), time dimension
     x: torch.Tensor  # (200, 1000), sparse codes
     y: torch.Tensor  # (38, 1000), signal
+    q: torch.Tensor
 
 
 def retrieve_single_xy(path: str = EXAMPLE) -> RFData:
@@ -31,11 +32,11 @@ def retrieve_single_xy(path: str = EXAMPLE) -> RFData:
         key_translation[k]: torch.tensor(v).squeeze()
         for k, v in data.items()
         if k in key_translation
-    }
+    } | {"q": torch.linspace(-1000, 1000, 200)}
 
 
 def peek(**kwargs):
-    return {k: v.shape for k, v in kwargs.items() if type(v) is np.ndarray}
+    return {k: v.shape for k, v in kwargs.items() if type(v) is torch.Tensor}
 
 
 def heatmap_one_plot(*args: np.ndarray, rng=None):
@@ -55,6 +56,8 @@ def heatmap_one_plot(*args: np.ndarray, rng=None):
 
 def heatmap(rng=None, **kwargs: np.ndarray):
     for k, v in kwargs.items():
+        if len(v.shape) <= 2:
+            continue
         fig, ax = plt.subplots(figsize=(8, 5), dpi=300)
         sns.heatmap(
             v,
