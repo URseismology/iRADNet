@@ -94,17 +94,18 @@ def sparse_inverse_radon_fista(
     m0 = torch.real(torch.fft.ifft(M0, dim=0).squeeze(0))[:nt, :]
 
     # Perform FISTA
-    m = fista(
-        m0=m0,
+    start = time_ns()
+    for m in fista(
+        x0=m0,
         y_freq=y_freq,
-        kernels=kernels,
+        D=kernels,
         nt=nt,
         ilow=ilow,
         ihigh=ihigh,
         maxiter=maxiter,
         lamdb=alphas[0],
-    )
-    return m
+    ):
+        yield m, time_ns() - start
 
 
 if __name__ == "__main__":
@@ -131,9 +132,7 @@ if __name__ == "__main__":
         # if osp.exists(f"log/{exp_name}.pt"):
         #     continue
 
-        start = time_ns()
-
-        for x_hat in sparse_inverse_radon_fista(
+        for x_hat, elapsed in sparse_inverse_radon_fista(
             y=y,
             rayP=rayP,
             q=q,
@@ -143,9 +142,10 @@ if __name__ == "__main__":
             maxiter=20,
             device=DEVICE,
         ):
+            x_hat = x_hat.detach().cpu().T
             nmse = F.mse_loss(x_hat, data["x"]) / F.mse_loss(
                 data["x"], torch.zeros_like(data["x"])
             )
-            print(f"{nmse.item()},{time_ns() - start}")
+            print(f"{nmse.item()},{elapsed}")
             # torch.save(x_hat, f"log/{exp_name}.pt")
             # heatmap(rng=[-1, 1], **{exp_name: x_hat})
