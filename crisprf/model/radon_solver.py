@@ -1,7 +1,9 @@
 import torch
 import torch.nn.functional as F
 from FISTA import fista
+from LISTA_CP import lista
 from math import floor, ceil, log2
+from typing import Generator
 
 
 def sparse_inverse_radon_fista(
@@ -14,7 +16,7 @@ def sparse_inverse_radon_fista(
     maxiter: int,
     device: torch.device = torch.device("cpu"),
     **_,
-) -> torch.Tensor:
+) -> Generator[tuple[torch.Tensor, int], None, None]:
     """
     sparse inverse radon transform with FISTA for SRTFISTA reconstruction
 
@@ -95,7 +97,9 @@ def sparse_inverse_radon_fista(
 
     # Perform FISTA
     start = time_ns()
-    for m in fista(
+    method = lista
+    print(method.__name__)
+    for m in method(
         x0=m0,
         y_freq=y_freq,
         D=kernels,
@@ -103,7 +107,7 @@ def sparse_inverse_radon_fista(
         ilow=ilow,
         ihigh=ihigh,
         maxiter=maxiter,
-        lamdb=alphas[0],
+        lambd=alphas[0],
     ):
         yield m, time_ns() - start
 
@@ -139,13 +143,15 @@ if __name__ == "__main__":
             seconds=nt * dt,
             freq_bounds=(0, 1 / 2 / dt),
             alphas=(1, 0.2),
-            maxiter=20,
+            maxiter=10,
             device=DEVICE,
         ):
+            # get number of none-zero elements
             x_hat = x_hat.detach().cpu().T
-            nmse = F.mse_loss(x_hat, data["x"]) / F.mse_loss(
-                data["x"], torch.zeros_like(data["x"])
+            mse = F.mse_loss(data["x"], x_hat)
+            mse_0 = F.mse_loss(data["x"], torch.zeros_like(data["x"]))
+            print(
+                f"{torch.count_nonzero(x_hat):2e} {mse.item():6e}/{mse_0.item():6e}={(mse/mse_0).item():4e},{elapsed}"
             )
-            print(f"{nmse.item()},{elapsed}")
             # torch.save(x_hat, f"log/{exp_name}.pt")
             # heatmap(rng=[-1, 1], **{exp_name: x_hat})
