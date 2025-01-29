@@ -6,7 +6,7 @@ from typing import Generator
 
 
 def radon3d_forward(
-    x: torch.Tensor, D: torch.Tensor, nt: int, ilow: int, ihigh: int
+    x: torch.Tensor, L: torch.Tensor, nt: int, ilow: int, ihigh: int
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """function for A operator for 3D radon transform
 
@@ -14,8 +14,8 @@ def radon3d_forward(
     ----------
     x : torch.Tensor
         sparse code
-    D : torch.Tensor
-        3D dictionary
+    L : torch.Tensor
+        3D matrix (nfft, np, nq)
     nt : int
         number of time samples
     ilow : int
@@ -28,12 +28,12 @@ def radon3d_forward(
     tuple[torch.Tensor, torch.Tensor]
         frequency domain (complex128) and time domain (float64) adjoint operator
     """
-    nfft, np, _ = D.shape
-    freq_ret = torch.zeros((nfft, np), device=D.device, dtype=torch.complex128)
+    nfft, np, _ = L.shape
+    freq_ret = torch.zeros((nfft, np), device=L.device, dtype=torch.complex128)
 
     # (slice, np, nq) @ (slice, nq, ) = (slice, np, )
     freq_ret[ilow:ihigh, :] = torch.einsum(
-        "bpq,bq->bp", D[ilow:ihigh, :, :], x[ilow:ihigh, :]
+        "bpq,bq->bp", L[ilow:ihigh, :, :], x[ilow:ihigh, :]
     )
 
     # symmetrically fill the rest of the frequency domain
@@ -51,7 +51,7 @@ def radon3d_forward(
 
 
 def radon3d_forward_adjoint(
-    x: torch.Tensor, D: torch.Tensor, nt: int, ilow: int, ihigh: int
+    x: torch.Tensor, L: torch.Tensor, nt: int, ilow: int, ihigh: int
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """function for A* adjoint operator for 3D radon transform
 
@@ -59,8 +59,8 @@ def radon3d_forward_adjoint(
     ----------
     x : torch.Tensor
         sparse code
-    D : torch.Tensor
-        3D dictionary
+    L : torch.Tensor
+        3D matrix (nfft, np, nq)
     nt : int
         number of time samples
     ilow : int
@@ -73,12 +73,12 @@ def radon3d_forward_adjoint(
     tuple[torch.Tensor, torch.Tensor]
         frequency domain (complex128) and time domain (float64) adjoint operator
     """
-    nfft, _, nq = D.shape
-    freq_ret = torch.zeros((nfft, nq), device=D.device, dtype=torch.complex128)
+    nfft, _, nq = L.shape
+    freq_ret = torch.zeros((nfft, nq), device=L.device, dtype=torch.complex128)
 
     # (slice, np, nq) @ (slice, np, ) = (slice, nq, )
     freq_ret[ilow:ihigh, :] = torch.einsum(
-        "bpq,bp->bq", D[ilow:ihigh, :, :], x[ilow:ihigh, :]
+        "bpq,bp->bq", L[ilow:ihigh, :, :], x[ilow:ihigh, :]
     )
 
     # symmetrically fill the rest of the frequency domain
@@ -95,47 +95,47 @@ def radon3d_forward_adjoint(
     return freq_ret, time_ret
 
 
-def cal_lipschitz(D: torch.Tensor, nt: int, ilow: int, ihigh: int):
-    nfft, np, nq = D.shape
-    b_k = torch.randn((nt, nq), device=D.device, dtype=torch.float64)
+def cal_lipschitz(L: torch.Tensor, nt: int, ilow: int, ihigh: int):
+    nfft, np, nq = L.shape
+    b_k = torch.randn((nt, nq), device=L.device, dtype=torch.float64)
     B_k = torch.fft.fft(b_k, nfft, dim=0)
 
     for _ in range(2):
-        B_tmp, _ = radon3d_forward(B_k, D=D, nt=nt, ilow=ilow, ihigh=ihigh)
-        _, b_tmp = radon3d_forward_adjoint(B_tmp, D=D, nt=nt, ilow=ilow, ihigh=ihigh)
+        B_tmp, _ = radon3d_forward(B_k, L=L, nt=nt, ilow=ilow, ihigh=ihigh)
+        _, b_tmp = radon3d_forward_adjoint(B_tmp, L=L, nt=nt, ilow=ilow, ihigh=ihigh)
         b_k = b_tmp / (1e-10 + torch.linalg.vector_norm(b_tmp, ord=2))
         B_k = torch.fft.fft(b_k, nfft, dim=0)
 
-    B_kp, _ = radon3d_forward(B_k, D=D, nt=nt, ilow=ilow, ihigh=ihigh)
-    _, b_kp = radon3d_forward_adjoint(B_kp, D=D, nt=nt, ilow=ilow, ihigh=ihigh)
+    B_kp, _ = radon3d_forward(B_k, L=L, nt=nt, ilow=ilow, ihigh=ihigh)
+    _, b_kp = radon3d_forward_adjoint(B_kp, L=L, nt=nt, ilow=ilow, ihigh=ihigh)
     L = torch.sum(b_k * b_kp) / torch.sum(b_k**2)
     return L
 
 
 class SRTLISTA(nn.Module):
 
-    def __init__(self, D: torch.Tensor, maxiter: int, lambd: float, **kwargs):
+    def __init__(self, L: torch.Tensor, maxiter: int, lambd: float, **kwargs):
         super().__init__()
-        assert D is not None
-        # D: (nfft, np, nq)
-        self.nfft, self.np, self.nq = D.shape
+        assert L is not None
+        # L: (nfft, np, nq)
+        self.nfft, self.np, self.nq = L.shape
 
-        self.D = D
+        self.L = L
         self.maxiter = maxiter
 
-        self.W1 = nn.Parameter(D.clone(), requires_grad=True)
-        self.W2 = nn.Parameter(D.clone(), requires_grad=True)
-        assert self.W1.device == D.device
+        self.W1 = nn.Parameter(L.clone(), requires_grad=True)
+        self.W2 = nn.Parameter(L.clone(), requires_grad=True)
+        assert self.W1.device == L.device
 
         # etas and gammas are for each iteration, and we have `maxiter` iterations
         self.gammas = nn.Parameter(
-            torch.ones(maxiter, device=D.device), requires_grad=True
+            torch.ones(maxiter, device=L.device), requires_grad=True
         )
         self.etas = nn.Parameter(
-            torch.ones(maxiter, device=D.device), requires_grad=True
+            torch.ones(maxiter, device=L.device), requires_grad=True
         )
 
-        L = cal_lipschitz(D=D, **kwargs)
+        L = cal_lipschitz(L=L, **kwargs)
         self.gammas.data *= 0.9 / L
         self.etas.data *= 0.9 / L
         self.reinit_num = 0
@@ -158,9 +158,9 @@ class SRTLISTA(nn.Module):
         # and so on x2, x3, ..., xT
         for i in range(self.maxiter):
             _As, _ = radon3d_forward(
-                x=torch.fft.fft(torch.real(s), self.nfft, dim=0), D=self.W1, **kwargs
+                x=torch.fft.fft(torch.real(s), self.nfft, dim=0), L=self.W1, **kwargs
             )
-            _, _AAs = radon3d_forward_adjoint(_As - y, D=self.W2, **kwargs)
+            _, _AAs = radon3d_forward_adjoint(_As - y, L=self.W2, **kwargs)
 
             # shrinking
             x_prev = x
@@ -179,7 +179,7 @@ class SRTLISTA(nn.Module):
 def lista(
     x0: torch.Tensor,
     y_freq: torch.Tensor,
-    D: torch.Tensor,
+    L: torch.Tensor,
     nt: int,
     ilow: int,
     ihigh: int,
@@ -194,7 +194,7 @@ def lista(
         inital sparse code guess
     y_freq : torch.Tensor
         _description_
-    D : torch.Tensor
+    L : torch.Tensor
         _description_
     nt : int
         _description_
@@ -213,7 +213,7 @@ def lista(
         :code:`x1` :code:`xT` sparse code after each iteration of ISTA
     """
     lista_model = SRTLISTA(
-        D=D, maxiter=maxiter, lambd=lambd, nt=nt, ilow=ilow, ihigh=ihigh
+        L=L, maxiter=maxiter, lambd=lambd, nt=nt, ilow=ilow, ihigh=ihigh
     )
 
     return lista_model(x0, y_freq, nt=nt, ilow=ilow, ihigh=ihigh)

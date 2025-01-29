@@ -1,9 +1,10 @@
 import torch
 import torch.nn.functional as F
-from FISTA import fista
-from LISTA_CP import lista
+from .FISTA import fista
+from .LISTA_CP import lista
 from math import floor, ceil, log2
 from typing import Generator
+from time import time_ns
 
 
 def sparse_inverse_radon_fista(
@@ -15,6 +16,7 @@ def sparse_inverse_radon_fista(
     alphas: tuple[float, float],
     maxiter: int,
     device: torch.device = torch.device("cpu"),
+    ista_fn: callable = fista,
     **_,
 ) -> Generator[tuple[torch.Tensor, int], None, None]:
     """
@@ -79,8 +81,8 @@ def sparse_inverse_radon_fista(
     M0 = torch.zeros((nfft, nq), device=device, dtype=torch.complex128)
     for ifreq in range(ilow, ihigh):
         L = kernels[ifreq, :, :]  # (np, nq)
-        y = y_freq[ifreq, :]  # (np, )
-        B = L.T @ y  # (nq, )
+        y_tmp = y_freq[ifreq, :]  # (np, )
+        B = L.T @ y_tmp  # (nq, )
         A = L.T @ L  # (nq, nq)
 
         # (A + alpha * I) x = B, solve for x (nq, )
@@ -97,12 +99,10 @@ def sparse_inverse_radon_fista(
 
     # Perform FISTA
     start = time_ns()
-    method = lista
-    print(method.__name__)
-    for m in method(
+    for m in ista_fn(
         x0=m0,
         y_freq=y_freq,
-        D=kernels,
+        L=kernels,
         nt=nt,
         ilow=ilow,
         ihigh=ihigh,
@@ -114,9 +114,6 @@ def sparse_inverse_radon_fista(
 
 if __name__ == "__main__":
     from crisprf.util.bridging import retrieve_single_xy, heatmap
-    from tqdm import tqdm
-    import os.path as osp
-    from time import time_ns
 
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -145,6 +142,7 @@ if __name__ == "__main__":
             alphas=(1, 0.2),
             maxiter=10,
             device=DEVICE,
+            ista_fn=fista,
         ):
             # get number of none-zero elements
             x_hat = x_hat.detach().cpu().T

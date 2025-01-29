@@ -3,7 +3,7 @@ from math import sqrt
 
 
 def radon3d_forward(
-    x: torch.Tensor, D: torch.Tensor, nt: int, ilow: int, ihigh: int
+    x: torch.Tensor, L: torch.Tensor, nt: int, ilow: int, ihigh: int
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """A operator for 3D radon transform
 
@@ -11,7 +11,7 @@ def radon3d_forward(
     ----------
     x : torch.Tensor
         sparse code
-    D : torch.Tensor
+    L : torch.Tensor
         3D dictionary
     nt : int
         number of time samples
@@ -25,12 +25,12 @@ def radon3d_forward(
     tuple[torch.Tensor, torch.Tensor]
         frequency domain (complex128) and time domain (float64) adjoint operator
     """
-    nfft, np, _ = D.shape
-    freq_ret = torch.zeros((nfft, np), device=D.device, dtype=torch.complex128)
+    nfft, np, _ = L.shape
+    freq_ret = torch.zeros((nfft, np), device=L.device, dtype=torch.complex128)
 
     # (slice, np, nq) @ (slice, nq, ) = (slice, np, )
     freq_ret[ilow:ihigh, :] = torch.einsum(
-        "bpq,bq->bp", D[ilow:ihigh, :, :], x[ilow:ihigh, :]
+        "bpq,bq->bp", L[ilow:ihigh, :, :], x[ilow:ihigh, :]
     )
 
     # symmetrically fill the rest of the frequency domain
@@ -48,7 +48,7 @@ def radon3d_forward(
 
 
 def radon3d_forward_adjoint(
-    x: torch.Tensor, D: torch.Tensor, nt: int, ilow: int, ihigh: int
+    x: torch.Tensor, L: torch.Tensor, nt: int, ilow: int, ihigh: int
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """A* adjoint operator for 3D radon transform
 
@@ -56,7 +56,7 @@ def radon3d_forward_adjoint(
     ----------
     x : torch.Tensor
         sparse code
-    D : torch.Tensor
+    L : torch.Tensor
         3D dictionary
     nt : int
         number of time samples
@@ -70,12 +70,12 @@ def radon3d_forward_adjoint(
     tuple[torch.Tensor, torch.Tensor]
         frequency domain (complex128) and time domain (float64) adjoint operator
     """
-    nfft, _, nq = D.shape
-    freq_ret = torch.zeros((nfft, nq), device=D.device, dtype=torch.complex128)
+    nfft, _, nq = L.shape
+    freq_ret = torch.zeros((nfft, nq), device=L.device, dtype=torch.complex128)
 
     # (slice, np, nq) @ (slice, np, ) = (slice, nq, )
     freq_ret[ilow:ihigh, :] = torch.einsum(
-        "bpq,bp->bq", D[ilow:ihigh, :, :], x[ilow:ihigh, :]
+        "bpq,bp->bq", L[ilow:ihigh, :, :], x[ilow:ihigh, :]
     )
 
     # symmetrically fill the rest of the frequency domain
@@ -92,19 +92,19 @@ def radon3d_forward_adjoint(
     return freq_ret, time_ret
 
 
-def cal_step_size(D: torch.Tensor, nt: int, ilow: int, ihigh: int, alpha: float = 0.9):
-    nfft, np, nq = D.shape
-    b_k = torch.randn((nt, nq), device=D.device, dtype=torch.float64)
+def cal_step_size(L: torch.Tensor, nt: int, ilow: int, ihigh: int, alpha: float = 0.9):
+    nfft, np, nq = L.shape
+    b_k = torch.randn((nt, nq), device=L.device, dtype=torch.float64)
     B_k = torch.fft.fft(b_k, nfft, dim=0)
 
     for _ in range(2):
-        B_tmp, _ = radon3d_forward(B_k, D=D, nt=nt, ilow=ilow, ihigh=ihigh)
-        _, b_tmp = radon3d_forward_adjoint(B_tmp, D=D, nt=nt, ilow=ilow, ihigh=ihigh)
+        B_tmp, _ = radon3d_forward(B_k, L=L, nt=nt, ilow=ilow, ihigh=ihigh)
+        _, b_tmp = radon3d_forward_adjoint(B_tmp, L=L, nt=nt, ilow=ilow, ihigh=ihigh)
         b_k = b_tmp / (1e-10 + torch.linalg.vector_norm(b_tmp, ord=2))
         B_k = torch.fft.fft(b_k, nfft, dim=0)
 
-    B_kp, _ = radon3d_forward(B_k, D=D, nt=nt, ilow=ilow, ihigh=ihigh)
-    _, b_kp = radon3d_forward_adjoint(B_kp, D=D, nt=nt, ilow=ilow, ihigh=ihigh)
+    B_kp, _ = radon3d_forward(B_k, L=L, nt=nt, ilow=ilow, ihigh=ihigh)
+    _, b_kp = radon3d_forward_adjoint(B_kp, L=L, nt=nt, ilow=ilow, ihigh=ihigh)
     L = torch.sum(b_k * b_kp) / torch.sum(b_k**2)
     return alpha / L
 
@@ -112,16 +112,16 @@ def cal_step_size(D: torch.Tensor, nt: int, ilow: int, ihigh: int, alpha: float 
 def fista(
     x0: torch.Tensor,
     y_freq: torch.Tensor,
-    D: torch.Tensor,
+    L: torch.Tensor,
     nt: int,
     ilow: int,
     ihigh: int,
     maxiter: int,
     lambd: float,
 ):
-    nfft, _, _ = D.shape
+    nfft, _, _ = L.shape
 
-    fixed_params = dict(D=D, nt=nt, ilow=ilow, ihigh=ihigh)
+    fixed_params = dict(L=L, nt=nt, ilow=ilow, ihigh=ihigh)
     with torch.no_grad():
         x = x0
         s = x
