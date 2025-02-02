@@ -26,7 +26,7 @@ def test_fista():
         seconds=nt * dt,
         freq_bounds=(0, 1 / 2 / dt),
         alphas=(1, 0.2),
-        maxiter=10,
+        n_layers=10,
         device=DEVICE,
         ista_fn=fista,
     ):
@@ -55,7 +55,7 @@ def test_lista():
         seconds=nt * dt,
         freq_bounds=(0, 1 / 2 / dt),
         alphas=(1, 0.2),
-        maxiter=10,
+        n_layers=10,
         device=DEVICE,
         ista_fn=lista,
     ):
@@ -72,3 +72,7 @@ def test_lista():
             f"{nonzeros:2e} {mse.item():6e}/{mse_0.item():6e}={nmse.item():4e} {elapsed}"
         )
         stats.append((nonzeros, mse, mse_0, nmse, elapsed))
+
+
+if __name__ == "__main__":
+    test_lista()

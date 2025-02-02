@@ -1,5 +1,4 @@
 import torch
-import torch.nn.functional as F
 from .FISTA import fista
 from .LISTA_CP import lista
 from math import floor, ceil, log2
@@ -14,7 +13,7 @@ def sparse_inverse_radon_fista(
     seconds: float,
     freq_bounds: tuple[float, float],
     alphas: tuple[float, float],
-    maxiter: int,
+    n_layers: int,
     device: torch.device = torch.device("cpu"),
     ista_fn: callable = fista,
     **_,
@@ -36,7 +35,7 @@ def sparse_inverse_radon_fista(
         freq. low cut-off and high cut-off
     alphas : tuple[float, float]
         regularization parameter for L1 and L2
-    maxiter : int
+    n_layers : int
         max number of iterations
     device : torch.device, optional
         device to run the computation, by default torch.device("cpu")
@@ -106,50 +105,11 @@ def sparse_inverse_radon_fista(
         nt=nt,
         ilow=ilow,
         ihigh=ihigh,
-        maxiter=maxiter,
+        n_layers=n_layers,
         lambd=alphas[0],
     ):
         yield m, time_ns() - start
 
 
 if __name__ == "__main__":
-    from crisprf.util.bridging import retrieve_single_xy, heatmap
-
-    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    data = retrieve_single_xy("data/Ps_RF_syn1.mat")
-
-    nt = 5000
-    dt = 0.02
-
-    _alpha0_range = torch.linspace(0.8, 3.7, 30)
-    alpha1 = 1
-
-    y = data["y"].T.to(DEVICE)
-    rayP = data["rayP"].to(DEVICE)
-    q = data["q"].to(DEVICE)
-    for alpha0 in [1.6]:
-        exp_name = f"y_hat_{alpha0:.4f}_{alpha1:.4f}"
-        # if osp.exists(f"log/{exp_name}.pt"):
-        #     continue
-
-        for x_hat, elapsed in sparse_inverse_radon_fista(
-            y=y,
-            rayP=rayP,
-            q=q,
-            seconds=nt * dt,
-            freq_bounds=(0, 1 / 2 / dt),
-            alphas=(1, 0.2),
-            maxiter=10,
-            device=DEVICE,
-            ista_fn=fista,
-        ):
-            # get number of none-zero elements
-            x_hat = x_hat.detach().cpu().T
-            mse = F.mse_loss(data["x"], x_hat)
-            mse_0 = F.mse_loss(data["x"], torch.zeros_like(data["x"]))
-            print(
-                f"{torch.count_nonzero(x_hat):2e} {mse.item():6e}/{mse_0.item():6e}={(mse/mse_0).item():4e},{elapsed}"
-            )
-            # torch.save(x_hat, f"log/{exp_name}.pt")
-            # heatmap(rng=[-1, 1], **{exp_name: x_hat})
+    pass

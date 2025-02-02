@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 
 
 def radon3d_forward(
@@ -111,3 +112,9 @@ def cal_lipschitz(L: torch.Tensor, nt: int, ilow: int, ihigh: int):
 def cal_step_size(L: torch.Tensor, nt: int, ilow: int, ihigh: int, alpha: float = 0.9):
     lipschitz = cal_lipschitz(L, nt, ilow, ihigh)
     return alpha / lipschitz
+
+
+def shrink(x: torch.Tensor, eta: torch.Tensor, lambd: float = 1.0):
+    # assert eta.numel() == 1
+
+    return eta * F.softshrink(x / eta, lambd)

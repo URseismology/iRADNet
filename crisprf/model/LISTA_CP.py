@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from math import sqrt
 from typing import Generator
-from .radon3d import radon3d_forward, radon3d_forward_adjoint, cal_lipschitz
+from .radon3d import radon3d_forward, radon3d_forward_adjoint, cal_lipschitz, shrink
 
 
 class SRT_LISTA_CP(nn.Module):
@@ -12,7 +12,6 @@ class SRT_LISTA_CP(nn.Module):
         self,
         L: torch.Tensor,
         n_layers: int,
-        lambd: float,
         device: torch.device = torch.device("cuda:0"),
         **kwargs
     ):
@@ -43,12 +42,6 @@ class SRT_LISTA_CP(nn.Module):
         )
 
         self.reinit_num = 0
-        self.lambd = lambd
-
-    def _shrink(self, x: torch.Tensor, eta: torch.Tensor, lambd: float):
-        # assert eta.numel() == 1
-
-        return eta * F.softshrink(x / eta, lambd)
 
     def forward(
         self, x0: torch.Tensor, y: torch.Tensor, **kwargs
@@ -70,7 +63,7 @@ class SRT_LISTA_CP(nn.Module):
 
             # shrinking
             x_prev = x
-            x = self._shrink(s - self.gammas[i] * _AAs, self.etas[i], self.lambd)
+            x = shrink(s - self.gammas[i] * _AAs, self.etas[i])
 
             q_t1 = (1 + sqrt(1 + 4 * q_t**2)) / 2
             s = x + (q_t - 1) / q_t1 * (x - x_prev)
