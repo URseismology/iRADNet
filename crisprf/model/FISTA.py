@@ -18,25 +18,28 @@ def fista(
     fixed_params = dict(L=L, nt=nt, ilow=ilow, ihigh=ihigh)
     with torch.no_grad():
         x = x0
-        s = x
+        z = x
         q_t = 1
         step_size = cal_step_size(**fixed_params)
 
         for _ in range(n_layers):
             # z update
             _As, _ = radon3d_forward(
-                torch.fft.fft(torch.real(s), nfft, dim=0), **fixed_params
+                torch.fft.fft(torch.real(z), nfft, dim=0), **fixed_params
             )
-            _, _AAs = radon3d_forward_adjoint(_As - y_freq, **fixed_params)
             # now _AAs <=> A*(Ax - y_freq)
-            z = s - step_size * _AAs
+            _, _AAs = radon3d_forward_adjoint(_As - y_freq, **fixed_params)
             # threshold
             x_prev = x
-            x = torch.where(torch.abs(z) > step_size * lambd, z, 0)
+            x = torch.where(
+                torch.abs(z - step_size * _AAs) > step_size * lambd,
+                z - step_size * _AAs,
+                0,
+            )
             # q update
-            q_t1 = 0.5 * (1 + sqrt(1 + 4 * (q_t**2)))
+            q_new = 0.5 * (1 + sqrt(1 + 4 * (q_t**2)))
             # s update
-            s = x + (q_t - 1) / q_t1 * (x - x_prev)
-            q_t = q_t1
+            z = x + (q_t - 1) / q_new * (x - x_prev)
+            q_t = q_new
             yield x
         # return m

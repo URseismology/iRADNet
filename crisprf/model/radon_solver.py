@@ -1,16 +1,60 @@
 import torch
 from .FISTA import fista
-from .LISTA_CP import lista
 from math import floor, ceil, log2
 from typing import Generator
 from time import time_ns
+
+
+def get_shapes(
+    y: torch.Tensor,
+    q: torch.Tensor,
+    rayP: torch.Tensor = None,
+) -> tuple[int, int, int, int, torch.Tensor]:
+    nt, np = y.shape
+    nfft = 2 ** (ceil(log2(nt)) + 1)
+    nq = q.shape[0]
+
+    if rayP is not None:
+        assert rayP.shape == (np,), f"{rayP.shape} != ({np},)"
+
+    return nfft, nt, np, nq
+
+
+def get_x0(
+    y_freq: torch.Tensor,
+    radon_mat: torch.Tensor,
+    ilow: int,
+    ihigh: int,
+    nt: int,
+    reg: float,
+):
+    nfft, np, nq = radon_mat.shape
+
+    M0 = torch.zeros((nfft, nq), device=y_freq.device, dtype=torch.complex128)
+    for ifreq in range(ilow, ihigh):
+        L = radon_mat[ifreq, :, :]  # (np, nq)
+        y_tmp = y_freq[ifreq, :]  # (np, )
+        B = L.T @ y_tmp  # (nq, )
+        A = L.T @ L  # (nq, nq)
+
+        # (A + alpha * I) x = B, solve for x (nq, )
+        row: torch.Tensor = torch.linalg.solve(
+            A + reg * torch.eye(nq, device=y_freq.device), B
+        )
+
+        M0[ifreq, :] = row
+        M0[nfft - 1 - ifreq, :] = row.conj()
+
+    M0[nfft // 2, :] = 0
+    # (nfft, nq) -> (nfft, nq) -> (nt, np)
+    return torch.real(torch.fft.ifft(M0, dim=0).squeeze(0))[:nt, :]
 
 
 def sparse_inverse_radon_fista(
     y: torch.Tensor,
     rayP: torch.Tensor,
     q: torch.Tensor,
-    seconds: float,
+    dt: float,
     freq_bounds: tuple[float, float],
     alphas: tuple[float, float],
     n_layers: int,
@@ -29,8 +73,8 @@ def sparse_inverse_radon_fista(
         ray parameters
     q : torch.Tensor
         q range in 1d
-    seconds : float
-        sampling in seconds
+    dt : float
+        sampling delta time t1-t0, in seconds
     freq_bounds : tuple[float, float]
         freq. low cut-off and high cut-off
     alphas : tuple[float, float]
@@ -45,61 +89,39 @@ def sparse_inverse_radon_fista(
     torch.Tensor
         reconstructed radon image
     """
-    # Initialization
-    nt, np = y.shape
-    nq = q.shape[0]
+    nfft, nt, np, nq = get_shapes(y, q, rayP)
 
-    # d = d.to(device)
-    # rayP = rayP.to(device)
-    # q = q.to(device)
-
-    assert rayP.shape == (np,), f"{rayP.shape} != ({np},)"
-    assert q.shape == (nq,), f"{q.shape} != ({nq},)"
-
-    # find 2^(k+1) such that 2^k >= nt
-    nfft = 2 ** (ceil(log2(nt)) + 1)
-
-    # Initialize model matrices in frequency domain
+    # init signal in frequency domain
     y_freq: torch.Tensor = torch.fft.fft(y, nfft, dim=0)
     assert y_freq.shape == (nfft, np)
 
-    # Initialize kernel matrix (3D) in frequency domain
+    # init radon transform matrix
     kernels = torch.zeros((nfft, np, nq), device=device, dtype=torch.complex128)
+    ifreq_f = (
+        2
+        * torch.pi
+        * torch.arange(nfft, device=device, dtype=torch.float64)
+        / nfft
+        / dt
+    )
+    # (nfft) @ (np) @ (nq) = (nfft, np, nq)
+    kernels[:, :, :] = torch.exp(
+        1j * torch.einsum("f,p,q->fpq", ifreq_f, rayP**2, q.to(torch.complex128))
+    )
 
-    for ifreq in range(nfft):
-        f = 2 * torch.pi * ifreq / nfft / seconds
-        # (np, 1) @ (1, nq) = (np, nq)
-        kernels[ifreq, :, :] = torch.exp(
-            1j * f * (rayP.unsqueeze(1) ** 2) @ q.unsqueeze(0).to(torch.complex128)
-        )
+    # determine a [ilow, ihigh) frequency range
+    ilow = max(floor(freq_bounds[0] * dt * nfft), 1)
+    ihigh = min(floor(freq_bounds[1] * dt * nfft), nfft // 2)
+    print(ilow, ihigh)
 
-    # Perform projection on the data
-    ilow = max(floor(freq_bounds[0] * seconds * nfft) + 1, 2)
-    ihigh = min(floor(freq_bounds[1] * seconds * nfft), nfft // 2) + 2
-
-    M0 = torch.zeros((nfft, nq), device=device, dtype=torch.complex128)
-    for ifreq in range(ilow, ihigh):
-        L = kernels[ifreq, :, :]  # (np, nq)
-        y_tmp = y_freq[ifreq, :]  # (np, )
-        B = L.T @ y_tmp  # (nq, )
-        A = L.T @ L  # (nq, nq)
-
-        # (A + alpha * I) x = B, solve for x (nq, )
-        x: torch.Tensor = torch.linalg.solve(
-            A + alphas[1] * torch.eye(nq, device=device), B
-        )
-
-        M0[ifreq, :] = x
-        M0[nfft + 1 - ifreq, :] = x.conj()
-
-    M0[nfft // 2 + 1, :] = 0
-    # (nfft, nq) -> (nfft, nq) -> (nt, np)
-    m0 = torch.real(torch.fft.ifft(M0, dim=0).squeeze(0))[:nt, :]
+    x0 = get_x0(
+        y_freq=y_freq, radon_mat=kernels, ilow=ilow, ihigh=ihigh, nt=nt, reg=alphas[1]
+    )
 
     # Perform FISTA
     start = time_ns()
-    for m in ista_fn(
-        x0=m0,
+    for x in ista_fn(
+        x0=x0,
         y_freq=y_freq,
         L=kernels,
         nt=nt,
@@ -108,7 +130,7 @@ def sparse_inverse_radon_fista(
         n_layers=n_layers,
         lambd=alphas[0],
     ):
-        yield m, time_ns() - start
+        yield x, time_ns() - start
 
 
 if __name__ == "__main__":

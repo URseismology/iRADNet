@@ -10,12 +10,12 @@ EXAMPLE = "/home/wmeng/crisprf/data/Sp_RF_syn1.mat"
 
 
 class RFData(TypedDict):
-    tshift: torch.Tensor  # (1, 1)
-    rayP: torch.Tensor  # (1, 38)
-    t: torch.Tensor  # (1, 1000), time dimension
-    x: torch.Tensor  # (200, 1000), sparse codes
-    y: torch.Tensor  # (38, 1000), signal
-    q: torch.Tensor
+    tshift: torch.Tensor  # ()
+    rayP: torch.Tensor  # (38,) ray parameters
+    t: torch.Tensor  # (1000,) time dimension
+    x: torch.Tensor  # (200, 1000) sparse codes
+    y: torch.Tensor  # (38, 1000) signal
+    q: torch.Tensor  # (200,) q range
 
 
 def retrieve_single_xy(path: str = EXAMPLE) -> RFData:
@@ -39,7 +39,7 @@ def peek(**kwargs):
     return {k: v.shape for k, v in kwargs.items() if type(v) is torch.Tensor}
 
 
-def heatmap_one_plot(*args: np.ndarray, rng=None):
+def heatmap_one_plot(*args: np.ndarray):
     N = len(args)
     fig, axes = plt.subplots(1, N, figsize=(8 * N, 6), dpi=300)
     axes = axes if N > 1 else [axes]
@@ -48,8 +48,7 @@ def heatmap_one_plot(*args: np.ndarray, rng=None):
             v,
             cmap="coolwarm",
             ax=ax,
-            vmin=rng[0] if rng else None,
-            vmax=rng[1] if rng else None,
+            center=0,
         )
     plt.savefig("fig/heatmap.png")
 
@@ -63,8 +62,7 @@ def heatmap(rng=None, **kwargs: np.ndarray):
             v,
             cmap="coolwarm",
             ax=ax,
-            vmin=rng[0] if rng else None,
-            vmax=rng[1] if rng else None,
+            center=0,
         )
         plt.tight_layout()
         plt.savefig(f"fig/{k}.png")
@@ -77,8 +75,8 @@ if __name__ == "__main__":
     data = retrieve_single_xy("data/Ps_RF_syn1.mat")
 
     pprint(peek(**data))
-    heatmap(rng=[-1, 1], **data)
-    heatmap_one_plot(data["x"], data["y"], rng=[-1, 1])
+    # heatmap(rng=[-1, 1], **data)
+    # heatmap_one_plot(data["x"], data["y"], rng=[-1, 1])
     # for k in ["x", "y"]:
     #     fig, ax = plt.subplots(figsize=(8, 5), dpi=300)
     #     sns.heatmap(data[k], cmap="coolwarm", vmin=-1, vmax=1, ax=ax)
