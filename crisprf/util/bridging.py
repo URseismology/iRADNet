@@ -4,35 +4,51 @@ from scipy.io import loadmat
 from typing import TypedDict
 from matplotlib import pyplot as plt
 import seaborn as sns
+import os.path as osp
 
 
 EXAMPLE = "/home/wmeng/crisprf/data/Sp_RF_syn1.mat"
 
 
 class RFData(TypedDict):
+    data_id: str
     tshift: torch.Tensor  # ()
-    rayP: torch.Tensor  # (38,) ray parameters
-    t: torch.Tensor  # (1000,) time dimension
-    x: torch.Tensor  # (200, 1000) sparse codes
-    y: torch.Tensor  # (38, 1000) signal
-    q: torch.Tensor  # (200,) q range
+    rayP: torch.Tensor  # (np,) ray parameters
+    t: torch.Tensor  # (nt,) time dimension
+    x: torch.Tensor  # (nt, nq) sparse codes
+    y: torch.Tensor  # (nt, np) signal
+    q: torch.Tensor  # (nq,) q range
 
 
-def retrieve_single_xy(path: str = EXAMPLE) -> RFData:
+def retrieve_single_xy(
+    path: str = EXAMPLE, device: torch.device = torch.device("cpu")
+) -> RFData:
     key_translation = {
         "tshift": "tshift",
         "rayP": "rayP",
         "taus": "t",  # time dimension
+    }
+    xy_translation = {
         "Min_2": "x",  # sparse codes
         "tx": "y",  # signal
     }
-    data: RFData = loadmat(path)
+    data = loadmat(path)
 
-    return {
-        key_translation[k]: torch.tensor(v).squeeze()
-        for k, v in data.items()
-        if k in key_translation
-    } | {"q": torch.linspace(-1000, 1000, 200)}
+    return (
+        {
+            k2: torch.tensor(data[k1], device=device).squeeze()
+            for k1, k2 in key_translation.items()
+        }
+        | {
+            # (.., nt) -> (nt, ..)
+            k2: torch.tensor(data[k1], device=device).T
+            for k1, k2 in xy_translation.items()
+        }
+        | {
+            "q": torch.linspace(-1000, 1000, 200, device=device),
+            "data_id": osp.basename(path),
+        }
+    )
 
 
 def peek(**kwargs):

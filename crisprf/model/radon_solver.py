@@ -3,6 +3,7 @@ from .FISTA import fista
 from math import floor, ceil, log2
 from typing import Generator
 from time import time_ns
+import os.path as osp
 
 
 def get_shapes(
@@ -51,6 +52,7 @@ def get_x0(
 
 
 def sparse_inverse_radon_fista(
+    data_id: str,
     y: torch.Tensor,
     rayP: torch.Tensor,
     q: torch.Tensor,
@@ -95,27 +97,31 @@ def sparse_inverse_radon_fista(
     y_freq: torch.Tensor = torch.fft.fft(y, nfft, dim=0)
     assert y_freq.shape == (nfft, np)
 
-    # init radon transform matrix
-    kernels = torch.zeros((nfft, np, nq), device=device, dtype=torch.complex128)
-    ifreq_f = (
-        2
-        * torch.pi
-        * torch.arange(nfft, device=device, dtype=torch.float64)
-        / nfft
-        / dt
-    )
-    # (nfft) @ (np) @ (nq) = (nfft, np, nq)
-    kernels[:, :, :] = torch.exp(
-        1j * torch.einsum("f,p,q->fpq", ifreq_f, rayP**2, q.to(torch.complex128))
-    )
+    cache_path = f"cache/{ista_fn.__name__}.{data_id}.pt"
+    if osp.exists(cache_path):
+        radon_mat = torch.load(cache_path)
+    else:
+        # init radon transform matrix
+        radon_mat = torch.zeros((nfft, np, nq), device=device, dtype=torch.complex128)
+        ifreq_f = (
+            2
+            * torch.pi
+            * torch.arange(nfft, device=device, dtype=torch.float64)
+            / nfft
+            / dt
+        )
+        # (nfft) @ (np) @ (nq) = (nfft, np, nq)
+        radon_mat[:, :, :] = torch.exp(
+            1j * torch.einsum("f,p,q->fpq", ifreq_f, rayP**2, q.to(torch.complex128))
+        )
+        torch.save(radon_mat, cache_path)
 
     # determine a [ilow, ihigh) frequency range
     ilow = max(floor(freq_bounds[0] * dt * nfft), 1)
     ihigh = min(floor(freq_bounds[1] * dt * nfft), nfft // 2)
-    print(ilow, ihigh)
 
     x0 = get_x0(
-        y_freq=y_freq, radon_mat=kernels, ilow=ilow, ihigh=ihigh, nt=nt, reg=alphas[1]
+        y_freq=y_freq, radon_mat=radon_mat, ilow=ilow, ihigh=ihigh, nt=nt, reg=alphas[1]
     )
 
     # Perform FISTA
@@ -123,7 +129,7 @@ def sparse_inverse_radon_fista(
     for x in ista_fn(
         x0=x0,
         y_freq=y_freq,
-        L=kernels,
+        L=radon_mat,
         nt=nt,
         ilow=ilow,
         ihigh=ihigh,
