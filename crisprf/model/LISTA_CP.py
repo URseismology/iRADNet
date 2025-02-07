@@ -27,16 +27,16 @@ class SRT_LISTA_CP(nn.Module):
         self.W2 = nn.Parameter(L.clone(), requires_grad=True)
 
         # each eta/gamma for each iteration; we have `n_layers`
-        L = cal_lipschitz(L=L, **kwargs)
+        lip = cal_lipschitz(L=L, **kwargs)
         self.gammas = nn.ParameterList(
             [
-                nn.Parameter(torch.ones(1, device=device) * 0.9 / L)
+                nn.Parameter(torch.ones(1, device=device) * 0.9 / lip)
                 for _ in range(n_layers)
             ]
         )
         self.etas = nn.ParameterList(
             [
-                nn.Parameter(torch.ones(1, device=device) * 0.9 / L)
+                nn.Parameter(torch.ones(1, device=device) * 0.9 / lip)
                 for _ in range(n_layers)
             ]
         )
@@ -111,8 +111,6 @@ def lista(
     torch.Tensor
         :code:`x1` :code:`xT` sparse code after each iteration of ISTA
     """
-    lista_model = SRT_LISTA_CP(
-        L=L, n_layers=n_layers, lambd=lambd, nt=nt, ilow=ilow, ihigh=ihigh
-    )
+    lista_model = SRT_LISTA_CP(L=L, n_layers=n_layers, nt=nt, ilow=ilow, ihigh=ihigh)
 
     return lista_model(x0, y_freq, nt=nt, ilow=ilow, ihigh=ihigh)

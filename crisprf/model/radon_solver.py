@@ -27,28 +27,33 @@ def get_x0(
     ilow: int,
     ihigh: int,
     nt: int,
-    reg: float,
+    mu: float,
 ):
     nfft, np, nq = radon_mat.shape
 
-    M0 = torch.zeros((nfft, nq), device=y_freq.device, dtype=torch.complex128)
+    x0_freq = torch.zeros((nfft, nq), device=y_freq.device, dtype=torch.complex128)
     for ifreq in range(ilow, ihigh):
-        L = radon_mat[ifreq, :, :]  # (np, nq)
-        y_tmp = y_freq[ifreq, :]  # (np, )
-        B = L.T @ y_tmp  # (nq, )
-        A = L.T @ L  # (nq, nq)
+        # (np, nq)
+        L = radon_mat[ifreq, :, :]
+        # (np, nq).T @ (np, ) -> (nq, )
+        B = L.T @ y_freq[ifreq, :]
+        # (np, nq).T @ (np, np) @ (np, nq) -> (nq, nq)
+        A = L.T @ L
+        assert A.dtype == torch.complex128
+        assert B.dtype == torch.complex128
 
         # (A + alpha * I) x = B, solve for x (nq, )
-        row: torch.Tensor = torch.linalg.solve(
-            A + reg * torch.eye(nq, device=y_freq.device), B
+        xi: torch.Tensor = torch.linalg.solve(
+            A + mu * torch.eye(nq, dtype=torch.complex128, device=y_freq.device), B
         )
 
-        M0[ifreq, :] = row
-        M0[nfft - 1 - ifreq, :] = row.conj()
+        assert xi.dtype == torch.complex128
+        x0_freq[ifreq, :] = xi
+        x0_freq[nfft - ifreq, :] = xi.conj()
 
-    M0[nfft // 2, :] = 0
-    # (nfft, nq) -> (nfft, nq) -> (nt, np)
-    return torch.real(torch.fft.ifft(M0, dim=0).squeeze(0))[:nt, :]
+    x0_freq[nfft // 2, :] = 0
+    # (nfft, nq) -> (nt, np)
+    return torch.real(torch.fft.ifft(x0_freq, dim=0)[:nt, :])
 
 
 def sparse_inverse_radon_fista(
@@ -101,10 +106,10 @@ def sparse_inverse_radon_fista(
     if osp.exists(cache_path):
         radon_mat = torch.load(cache_path)
     else:
-        # init radon transform matrix
+        # # init radon transform matrix
         radon_mat = torch.zeros((nfft, np, nq), device=device, dtype=torch.complex128)
         ifreq_f = (
-            2
+            2.0
             * torch.pi
             * torch.arange(nfft, device=device, dtype=torch.float64)
             / nfft
@@ -112,16 +117,17 @@ def sparse_inverse_radon_fista(
         )
         # (nfft) @ (np) @ (nq) = (nfft, np, nq)
         radon_mat[:, :, :] = torch.exp(
-            1j * torch.einsum("f,p,q->fpq", ifreq_f, rayP**2, q.to(torch.complex128))
+            1j * torch.einsum("f,p,q->fpq", ifreq_f, rayP**2, q).to(torch.complex128)
         )
         torch.save(radon_mat, cache_path)
 
-    # determine a [ilow, ihigh) frequency range
+    # determine a [ilow, ihigh) frequency range, bounded by
+    # [1, nfft // 2] <-> [nfft // 2, nfft - 1] such that it's symmetric
     ilow = max(floor(freq_bounds[0] * dt * nfft), 1)
     ihigh = min(floor(freq_bounds[1] * dt * nfft), nfft // 2)
 
     x0 = get_x0(
-        y_freq=y_freq, radon_mat=radon_mat, ilow=ilow, ihigh=ihigh, nt=nt, reg=alphas[1]
+        y_freq=y_freq, radon_mat=radon_mat, ilow=ilow, ihigh=ihigh, nt=nt, mu=alphas[1]
     )
 
     # Perform FISTA

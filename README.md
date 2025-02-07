@@ -10,6 +10,10 @@ Pytorch implementation of FISTA/LISTA in the CRISP-RF [^1].
 [Python-FISTA]: crisprf/model/FISTA.py
 [Matlab-FISTA]: crisprf/model/base/sparse_inverse_radon_fista.m
 
+where $\mathbf{y} \in \mathbb{R}^{T\times P}$ is receiver function image, $\mathbf{x} \in \mathbb{R}^{T\times Q}$ is sparse Radon transform; $T, P, Q$ are number of time samples, number of receiver functions, and number of Radon transforms, respectively. 
+
+In synthetic data, $T=5000, P=38, Q=200$.
+
 ## TODO
 
 - [ ] LISTA verification

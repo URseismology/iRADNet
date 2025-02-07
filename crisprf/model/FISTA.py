@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from math import sqrt
 from .radon3d import radon3d_forward, radon3d_forward_adjoint, cal_step_size
 
@@ -19,25 +20,22 @@ def fista(
     with torch.no_grad():
         x = x0
         z = x
-        q_t = 1
+        q_t = torch.ones(1, device=x.device)
         step_size = cal_step_size(**fixed_params)
 
         for _ in range(n_layers):
             # z update
-            _As, _ = radon3d_forward(
+            # y_hat = A(x)
+            y_hat_freq, _ = radon3d_forward(
                 torch.fft.fft(torch.real(z), nfft, dim=0), **fixed_params
             )
-            # now _AAs <=> A*(Ax - y_freq)
-            _, _AAs = radon3d_forward_adjoint(_As - y_freq, **fixed_params)
+            # x_hat = A*(y_hat - y_freq)
+            _, x_hat = radon3d_forward_adjoint(y_hat_freq - y_freq, **fixed_params)
             # threshold
             x_prev = x
-            x = torch.where(
-                torch.abs(z - step_size * _AAs) > step_size * lambd,
-                z - step_size * _AAs,
-                0,
-            )
+            x = F.softshrink(z - step_size * x_hat, step_size * lambd)
             # q update
-            q_new = 0.5 * (1 + sqrt(1 + 4 * (q_t**2)))
+            q_new = (1 + torch.sqrt(1 + 4 * q_t**2)) / 2
             # s update
             z = x + (q_t - 1) / q_new * (x - x_prev)
             q_t = q_new
