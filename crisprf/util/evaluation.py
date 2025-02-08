@@ -30,5 +30,6 @@ def eval_metrics(
         a0.set_title("pred")
         a1.set_title("gt")
         plt.savefig(save_path)
+        print(f"fig saved to {save_path}")
 
     return mse.item(), nmse.item(), nonzeros.item()

@@ -1,7 +1,6 @@
 import torch
 import torch.nn.functional as F
-from math import sqrt
-from .radon3d import radon3d_forward, radon3d_forward_adjoint, cal_step_size
+from .radon3d import radon3d_forward, radon3d_forward_adjoint, cal_step_size, freq2time
 
 
 def fista(
@@ -16,24 +15,29 @@ def fista(
 ):
     nfft, _, _ = L.shape
 
-    fixed_params = dict(L=L, nt=nt, ilow=ilow, ihigh=ihigh)
     with torch.no_grad():
         x = x0
         z = x
         q_t = torch.ones(1, device=x.device)
-        step_size = cal_step_size(**fixed_params)
+        step_size = cal_step_size(L=L, nt=nt, ilow=ilow, ihigh=ihigh)
 
         for _ in range(n_layers):
             # z update
             # y_hat = A(x)
-            y_hat_freq, _ = radon3d_forward(
-                torch.fft.fft(torch.real(z), nfft, dim=0), **fixed_params
+            y_tilde_freq = radon3d_forward(
+                torch.fft.fft(z, nfft, dim=0),
+                L=L,
+                ilow=ilow,
+                ihigh=ihigh,
             )
-            # x_hat = A*(y_hat - y_freq)
-            _, x_hat = radon3d_forward_adjoint(y_hat_freq - y_freq, **fixed_params)
+            # x_tilde = F^-1 L*(y_tilde_freq - y_freq)
+            x_tilde_freq = radon3d_forward_adjoint(
+                y_tilde_freq - y_freq, L=L, ilow=ilow, ihigh=ihigh
+            )
+            x_tilde = freq2time(x_tilde_freq, nt)
             # threshold
             x_prev = x
-            x = F.softshrink(z - step_size * x_hat, step_size * lambd)
+            x = F.softshrink(z - (step_size * x_tilde), step_size * lambd)
             # q update
             q_new = (1 + torch.sqrt(1 + 4 * q_t**2)) / 2
             # s update
