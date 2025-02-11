@@ -1,15 +1,14 @@
 import torch
 import torch.nn.functional as F
 import torch.fft as fft
-from math import ceil, log2
-from crisprf.util.constants import FREQ_DTYPE, TIME_DTYPE
+from crisprf.util.constants import FREQ_DTYPE, TIME_DTYPE, nextpow2
 
 
 def get_shapes(
     y: torch.Tensor, q: torch.Tensor, rayP: torch.Tensor = None, **_
 ) -> tuple[int, int, int, int, torch.Tensor]:
     nt, np = y.shape
-    nfft = 2 ** (ceil(log2(nt)) + 1)
+    nfft = 2 * nextpow2(nt)
     nq = q.shape[0]
 
     if rayP is not None:
@@ -87,7 +86,9 @@ def radon3d_forward(
     )
 
     # symmetrically fill the rest of the frequency domain, center -> 0
-    y_freq[nfft - ihigh : nfft - ilow, :] = y_freq[ilow:ihigh, :].conj().flip(0)
+    y_freq[nfft + 1 - ihigh : nfft + 1 - ilow, :] = (
+        y_freq[ilow:ihigh, :].conj().resolve_conj().flip(0)
+    )
     y_freq[nfft // 2, :] = 0
 
     return y_freq
@@ -123,7 +124,9 @@ def radon3d_forward_adjoint(
     )
 
     # symmetrically fill the rest of the frequency domain
-    x_freq[nfft - ihigh : nfft - ilow, :] = x_freq[ilow:ihigh, :].conj().flip(0)
+    x_freq[nfft + 1 - ihigh : nfft + 1 - ilow, :] = (
+        x_freq[ilow:ihigh, :].conj().resolve_conj().flip(0)
+    )
     x_freq[nfft // 2, :] = 0
 
     return x_freq
@@ -134,7 +137,7 @@ def freq2time(inp_freq: torch.Tensor, nt: int) -> torch.Tensor:
 
 
 def time2freq(inp: torch.Tensor, nfft: int) -> torch.Tensor:
-    return fft.fft(inp, n=nfft, dim=0)
+    return fft.fft(torch.real(inp), n=nfft, dim=0)
 
 
 def cal_lipschitz(L: torch.Tensor, nt: int, ilow: int, ihigh: int):
