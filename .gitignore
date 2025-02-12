@@ -162,7 +162,6 @@ cython_debug/
 .idea/
 
 data
-fig
 log
 out
 *.pdf
