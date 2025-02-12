@@ -1,6 +1,12 @@
 import torch
 import torch.nn.functional as F
-from .radon3d import radon3d_forward, radon3d_forward_adjoint, cal_step_size, freq2time
+from .radon3d import (
+    radon3d_forward,
+    radon3d_forward_adjoint,
+    cal_step_size,
+    freq2time,
+    time2freq,
+)
 
 
 def fista(
@@ -25,7 +31,7 @@ def fista(
             # z update
             # y_hat = A(x)
             y_tilde_freq = radon3d_forward(
-                torch.fft.fft(z, nfft, dim=0),
+                time2freq(z, nfft),
                 L=L,
                 ilow=ilow,
                 ihigh=ihigh,

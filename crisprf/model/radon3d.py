@@ -18,7 +18,7 @@ def get_shapes(
 
 
 def init_radon3d_mat(
-    y: torch.Tensor, q: torch.Tensor, rayP: torch.Tensor, dt: float, **_
+    y: torch.Tensor, q: torch.Tensor, rayP: torch.Tensor, dt: float, N: int = 2, **_
 ) -> torch.Tensor:
     """
     Initializes the 3D Radon transform matrix.
@@ -51,7 +51,7 @@ def init_radon3d_mat(
     )
     # (nfft) @ (np) @ (nq) = (nfft, np, nq)
     radon3d[:, :, :] = torch.exp(
-        1j * torch.einsum("f,p,q->fpq", ifreq_f, rayP**2, q).to(FREQ_DTYPE)
+        1j * torch.einsum("f,p,q->fpq", ifreq_f, torch.pow(rayP, N), q).to(FREQ_DTYPE)
     )
     return radon3d
 
@@ -160,7 +160,7 @@ def cal_lipschitz(L: torch.Tensor, nt: int, ilow: int, ihigh: int):
     return lipschitz.item()
 
 
-def cal_step_size(L: torch.Tensor, nt: int, ilow: int, ihigh: int, alpha: float = 0.9):
+def cal_step_size(L: torch.Tensor, nt: int, ilow: int, ihigh: int, alpha: float = 1.0):
     lipschitz = cal_lipschitz(L, nt, ilow, ihigh)
     print(f"Lipschitz={lipschitz}; step={alpha / lipschitz}")
     return alpha / lipschitz

@@ -1,14 +1,16 @@
-function m = radon3d_forward_test(rayP)
+function m = radon3d_forward_test()
     nt = 5000;
     nq = 200;
     np = 38;
     nfft = 16384;
     ilow = 2;
     ihigh = 8193;
+    dt = 0.02;
 
     % def radon3d setup params
     N = 2;
     q = linspace(-1000, 1000, 200);
+    rayP = linspace(0.098, 0.135, 38);
 
     % def radon3d matrix
     LLL = zeros(nfft, np, nq);

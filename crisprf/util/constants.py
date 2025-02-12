@@ -15,6 +15,8 @@ P = 38
 Q = 200
 dt = 0.02
 nfft = 2 * nextpow2(T)
+rayP = torch.linspace(0.098, 0.135, P, dtype=TIME_DTYPE)
+q = torch.linspace(-1000, 1000, Q)
 
 
 if __name__ == "__main__":
