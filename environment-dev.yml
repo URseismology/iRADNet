@@ -1,0 +1,19 @@
+name: crisp-rf
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.12
+
+  - numpy
+  - pandas
+  - seaborn
+  - tqdm
+  - scipy
+  - pytest  # only for development
+
+  - pip
+  - pip:
+    - torch==2.6
+    - torchvision
+    - torchaudio

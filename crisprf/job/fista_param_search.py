@@ -1,6 +1,7 @@
 import torch
 
 from tqdm import tqdm
+
 from typing import Generator
 
 from crisprf.model.FISTA import fista

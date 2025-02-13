@@ -1,0 +1,9 @@
+numpy
+pandas
+seaborn
+tqdm
+scipy
+
+torch==2.6
+torchvision
+torchaudio

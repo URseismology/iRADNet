@@ -26,8 +26,6 @@ class SRTDataset(Dataset):
 if __name__ == "__main__":
     from pprint import pprint
 
-    import seaborn as sns
-
     dataset = SRTDataset()
     sample = dataset[0]
     pprint(sample)
