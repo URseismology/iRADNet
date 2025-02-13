@@ -1,8 +1,8 @@
-from crisprf.model.LISTA_base import LISTA_base
-from crisprf.util.shrink import shrink
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+
+from crisprf.model.LISTA_base import LISTA_base
+from crisprf.util.shrink import shrink
 
 
 class LISTA(LISTA_base):

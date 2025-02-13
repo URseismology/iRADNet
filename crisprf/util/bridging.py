@@ -1,12 +1,13 @@
 import torch
-import numpy as np
 from scipy.io import loadmat
-from typing import TypedDict
-from matplotlib import pyplot as plt
-import seaborn as sns
-import os.path as osp
-from .constants import FREQ_DTYPE, TIME_DTYPE
 
+import seaborn as sns
+from matplotlib import pyplot as plt
+
+import os.path as osp
+from typing import TypedDict
+
+from .constants import FREQ_DTYPE, TIME_DTYPE
 
 EXAMPLE = "/home/wmeng/crisprf/data/Ps_RF_syn1.mat"
 

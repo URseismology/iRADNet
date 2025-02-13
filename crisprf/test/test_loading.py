@@ -1,8 +1,7 @@
-from crisprf.util.constants import T, P, Q
-from crisprf.util.dataloading import SRTDataset
 import torch
-import seaborn as sns
-import matplotlib.pyplot as plt
+
+from crisprf.util.constants import P, Q, T
+from crisprf.util.dataloading import SRTDataset
 
 
 def test_srt_dataset():

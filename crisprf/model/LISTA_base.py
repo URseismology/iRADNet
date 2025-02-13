@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class LISTA_base(nn.Module):
     r"""
-    Abstract class for LISTA-based models.  
+    Abstract class for LISTA-based models.
     In LISTA, we aim to solve optimization problem :math:`y = Dx + ϵ` with
 
     :math:`x(k+1) = ηθ(k) ( W1(k)y + W2(k)x(k) )`
@@ -86,5 +86,5 @@ class LISTA_base(nn.Module):
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     model = LISTA_base(1, torch.randn(20, 10))

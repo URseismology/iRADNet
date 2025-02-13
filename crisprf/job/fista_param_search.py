@@ -1,10 +1,12 @@
 import torch
+
+from tqdm import tqdm
+from typing import Generator
+
 from crisprf.model.FISTA import fista
 from crisprf.model.radon_solver import sparse_inverse_radon_fista
-from crisprf.util.evaluation import eval_metrics
 from crisprf.util.dataloading import SRTDataset
-from typing import Generator
-from tqdm import tqdm
+from crisprf.util.evaluation import eval_metrics
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dt = 0.02

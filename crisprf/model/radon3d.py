@@ -1,6 +1,7 @@
 import torch
-import torch.nn.functional as F
 import torch.fft as fft
+import torch.nn.functional as F
+
 from crisprf.util.constants import FREQ_DTYPE, TIME_DTYPE, nextpow2
 
 

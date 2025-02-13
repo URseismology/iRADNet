@@ -1,7 +1,9 @@
 import torch
 from torch.utils.data import Dataset
+
 from glob import glob
-from crisprf.util.bridging import retrieve_single_xy, RFData
+
+from crisprf.util.bridging import RFData, retrieve_single_xy
 
 
 class SRTDataset(Dataset):
@@ -23,6 +25,7 @@ class SRTDataset(Dataset):
 
 if __name__ == "__main__":
     from pprint import pprint
+
     import seaborn as sns
 
     dataset = SRTDataset()

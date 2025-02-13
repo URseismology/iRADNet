@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 FID_LOSS = nn.MSELoss()
 REG_LOSS = nn.L1Loss(reduction="sum")
@@ -21,8 +23,6 @@ def eval_metrics(
     nonzeros = torch.count_nonzero(pred)
 
     if save_path is not None:
-        import seaborn as sns
-        import matplotlib.pyplot as plt
 
         fig, (a0, a1) = plt.subplots(1, 2, sharey=True)
         sns.heatmap(pred.detach().cpu().numpy(), center=0, ax=a0)
