@@ -3,6 +3,7 @@ pandas
 seaborn
 tqdm
 scipy
+pytest
 
 torch==2.6
 torchvision
