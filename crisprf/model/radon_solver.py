@@ -24,20 +24,20 @@ def get_x0(
         # (np, nq)
         L = radon_mat[ifreq, :, :]
         # (np, nq).T @ (np, ) -> (nq, )
-        B = L.T @ y_freq[ifreq, :]
+        B = L.T.conj() @ y_freq[ifreq, :].conj()
         # (np, nq).T @ (np, np) @ (np, nq) -> (nq, nq)
-        A = L.T @ L
+        A = L.T.conj() @ L
         assert A.dtype == FREQ_DTYPE
         assert B.dtype == FREQ_DTYPE
 
         # (A + alpha * I) x = B, solve for x (nq, )
-        xi: torch.Tensor = torch.linalg.solve(
+        x_i: torch.Tensor = torch.linalg.solve(
             A + mu * torch.eye(nq, dtype=FREQ_DTYPE, device=y_freq.device), B
         )
 
-        assert xi.dtype == FREQ_DTYPE
-        x0_freq[ifreq, :] = xi
-        x0_freq[nfft - ifreq, :] = xi.conj()
+        assert x_i.dtype == FREQ_DTYPE
+        x0_freq[ifreq, :] = x_i.conj()
+        x0_freq[nfft - ifreq, :] = x_i
 
     x0_freq[nfft // 2, :] = 0
     # (nfft, nq) -> (nt, np)

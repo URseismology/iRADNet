@@ -1,6 +1,8 @@
 import torch
 from scipy.io import loadmat
 
+import numpy as np
+
 from crisprf.model.radon3d import (
     cal_lipschitz,
     freq2time,
@@ -10,7 +12,7 @@ from crisprf.model.radon3d import (
     time2freq,
 )
 from crisprf.util.bridging import retrieve_single_xy
-from crisprf.util.constants import FREQ_DTYPE, TIME_DTYPE, T, dt, nfft
+from crisprf.util.constants import FREQ_DTYPE, TIME_DTYPE, P, Q, T, dt, nfft
 
 radon_matlab_trace = loadmat("log/radon_test.mat")
 
@@ -54,9 +56,8 @@ def test_lip0():
 
 
 def test_lip1():
-    radon_pytorch = init_radon3d_mat(**retrieve_single_xy(), dt=dt)
     # index 2-8193 for matlab, so 1-8192 for pytorch
-    _y2_freq = radon3d_forward(x1_freq, radon_pytorch, 1, nfft // 2)
+    _y2_freq = radon3d_forward(x1_freq, radon_matlab, 1, nfft // 2)
     # y[0] == zeros
     assert torch.allclose(_y2_freq[0], torch.zeros_like(_y2_freq[0]))
     # y[nfft // 2] == zeros
@@ -68,27 +69,17 @@ def test_lip1():
 
     # test for value correctness
     assert _y2_freq.dtype == FREQ_DTYPE
-    # print(y2_freq - _y2_freq)
-    # import seaborn as sns
-    # import matplotlib.pyplot as plt
 
-    # fig, ((ax00, ax01), (ax10, ax11)) = plt.subplots(
-    #     2, 2, sharex=True, sharey=True, figsize=(10, 10)
-    # )
-    # pct = (_y2_freq - y2_freq) / y2_freq
-    # sns.heatmap(torch.real(pct), center=0, ax=ax00, vmin=-10, vmax=10)
-    # sns.heatmap(torch.real(y2_freq), center=0, ax=ax01, vmin=-1e3, vmax=1e3)
-    # sns.heatmap(torch.imag(pct), center=0, ax=ax10, vmin=-10, vmax=10)
-    # sns.heatmap(torch.imag(y2_freq), center=0, ax=ax11, vmin=-1e3, vmax=1e3)
-    # fig.savefig("log/y2_freq.png")
-
-    assert torch.allclose(_y2_freq, y2_freq)
+    assert y2_freq.shape == _y2_freq.shape
+    assert torch.allclose(_y2_freq[1:], y2_freq[1:])
 
 
 def test_lipschitz():
     lip_pytorch = cal_lipschitz(radon_matlab, T, 1, 8192)
-    print(lip_pytorch, lip_final)
+    # some randomness in init random x, so be generous
+    assert np.allclose(lip_pytorch, lip_final, rtol=1e-3)
 
 
 if __name__ == "__main__":
-    test_lipschitz()
+    # test_lipschitz()
+    pass

@@ -60,7 +60,7 @@ def init_radon3d_mat(
 def radon3d_forward(
     x_freq: torch.Tensor, L: torch.Tensor, ilow: int, ihigh: int
 ) -> torch.Tensor:
-    """3D radon transform :math:`L` frequency domain :math:`\tilde{y}_f = L(x_f)`
+    """3D radon transform :math:`L` frequency domain :math:`\\tilde{y}_f = L(x_f)`
 
     Parameters
     ----------
@@ -76,21 +76,21 @@ def radon3d_forward(
     Returns
     -------
     torch.Tensor
-        :math:`\tilde{y}_f = L(x_f)` in frequency domain
+        :math:`\\tilde{y}_f = L(x_f)` in frequency domain
     """
-    nfft, np, _ = L.shape
+    nfft, np, nq = L.shape
+    assert x_freq.shape == (nfft, nq)
     y_freq = torch.zeros((nfft, np), device=L.device, dtype=FREQ_DTYPE)
 
     # (slice, np, nq) @ (slice, nq, ) = (slice, np, )
-    y_freq[ilow:ihigh, :] = torch.einsum(
-        "bpq,bq->bp", L[ilow:ihigh, :, :], x_freq[ilow:ihigh, :]
+    y_slice = torch.einsum(
+        "bpq,bq->bp", L[ilow:ihigh, :, :], x_freq[ilow:ihigh, :].conj()
     )
 
     # symmetrically fill the rest of the frequency domain, center -> 0
-    y_freq[nfft + 1 - ihigh : nfft + 1 - ilow, :] = (
-        y_freq[ilow:ihigh, :].conj().resolve_conj().flip(0)
-    )
-    y_freq[nfft // 2, :] = 0
+    y_freq[ilow:ihigh, :] = y_slice.conj_physical()
+    y_freq[nfft + 1 - ihigh : nfft + 1 - ilow, :] = y_slice.flip(0)
+    y_freq[nfft // 2, :] = 0.0
 
     return y_freq
 
@@ -116,19 +116,19 @@ def radon3d_forward_adjoint(
     torch.Tensor
         :math:`\tilde{x}_f = L*(y_f)` in frequency domain
     """
-    nfft, _, nq = L.shape
+    nfft, np, nq = L.shape
+    assert y_freq.shape == (nfft, np)
     x_freq = torch.zeros((nfft, nq), device=L.device, dtype=FREQ_DTYPE)
 
     # (slice, np, nq) @ (slice, np, ) = (slice, nq, )
-    x_freq[ilow:ihigh, :] = torch.einsum(
-        "bpq,bp->bq", L[ilow:ihigh, :, :], y_freq[ilow:ihigh, :]
+    x_slice = torch.einsum(
+        "bpq,bp->bq", L[ilow:ihigh, :, :].conj(), y_freq[ilow:ihigh, :].conj()
     )
 
     # symmetrically fill the rest of the frequency domain
-    x_freq[nfft + 1 - ihigh : nfft + 1 - ilow, :] = (
-        x_freq[ilow:ihigh, :].conj().resolve_conj().flip(0)
-    )
-    x_freq[nfft // 2, :] = 0
+    x_freq[ilow:ihigh, :] = x_slice.conj_physical()
+    x_freq[nfft + 1 - ihigh : nfft + 1 - ilow, :] = x_slice.flip(0)
+    x_freq[nfft // 2, :] = 0.0
 
     return x_freq
 
@@ -161,7 +161,7 @@ def cal_lipschitz(L: torch.Tensor, nt: int, ilow: int, ihigh: int):
     return lipschitz.item()
 
 
-def cal_step_size(L: torch.Tensor, nt: int, ilow: int, ihigh: int, alpha: float = 1.0):
+def cal_step_size(L: torch.Tensor, nt: int, ilow: int, ihigh: int, alpha: float = 0.9):
     lipschitz = cal_lipschitz(L, nt, ilow, ihigh)
     print(f"Lipschitz={lipschitz}; step={alpha / lipschitz}")
     return alpha / lipschitz
@@ -169,5 +169,6 @@ def cal_step_size(L: torch.Tensor, nt: int, ilow: int, ihigh: int, alpha: float 
 
 def shrink(x: torch.Tensor, eta: torch.Tensor, lambd: float = 1.0):
     # assert eta.numel() == 1
-
+    # lambda just give a scale, can be anything
+    # the key is actually the ratio eta / lambda
     return eta * F.softshrink(x / eta, lambd)
