@@ -1,7 +1,7 @@
 function [M, m] = radon3d_forward_adjoint(LLL, DD, nt, ilow, ihigh);
 
     [nfft, ~, nq] = size(LLL);
-    M = zeros(nfft, nq);
+    M = complex(zeros(nfft, nq));
 
     for ifreq = ilow:ihigh
         % --- transform here

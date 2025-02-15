@@ -1,4 +1,8 @@
-function m = radon3d_forward_test()
+function m = lip_test()
+    % test the lipschitz constant of the forward operator
+    % also leave a trace of radon3d_forward intermiate outputs
+    % for debugging and verifying correctness of pytorch implementation
+
     nt = 5000;
     nq = 200;
     np = 38;
@@ -13,7 +17,7 @@ function m = radon3d_forward_test()
     rayP = linspace(0.098, 0.135, 38);
 
     % def radon3d matrix
-    LLL = zeros(nfft, np, nq);
+    LLL = complex(zeros(nfft, np, nq));
 
     for ifreq = 1:nfft
         f = 2 .* pi * (ifreq - 1) / nfft / dt;

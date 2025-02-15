@@ -29,7 +29,7 @@ function m = sparse_inverse_radon_fista(d, dt, rayP, q, ...
 
     % initialize model matrices in frequncy domain
     D = fft(d, nfft, 1);
-    M0 = zeros(nfft, nq);
+    M0 = complex(zeros(nfft, nq));
 
     % frequency set up for kernel initialization
     ilow = floor(flow * dt * nfft) + 1;
@@ -39,7 +39,7 @@ function m = sparse_inverse_radon_fista(d, dt, rayP, q, ...
     ilow = max(ilow, 2);
 
     % initialize kernel matrix (3D) in freq. domain
-    LLL = zeros(nfft, np, nq);
+    LLL = complex(zeros(nfft, np, nq));
 
     for ifreq = 1:nfft
         f = 2 .* pi * (ifreq - 1) / nfft / dt;
@@ -67,7 +67,7 @@ function m = sparse_inverse_radon_fista(d, dt, rayP, q, ...
 
     end
 
-    M0(nfft / 2 + 1, :) = zeros(1, nq);
+    M0(nfft / 2 + 1, :) = complex(zeros(1, nq));
     m0 = real(ifft(M0, [], 1));
     m0 = m0(1:nt, :);
 

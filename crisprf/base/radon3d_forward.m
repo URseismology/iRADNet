@@ -36,7 +36,7 @@ function [Dout, dout] = radon3d_forward(LLL, M, nt, ilow, ihigh);
     %  @Dr. Olugboji
 
     [nfft, np, ~] = size(LLL);
-    Dout = zeros(nfft, np);
+    Dout = complex(zeros(nfft, np));
 
     for ifreq = ilow:ihigh
         % --- transform here
