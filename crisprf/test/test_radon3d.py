@@ -3,6 +3,9 @@ from scipy.io import loadmat
 
 import numpy as np
 
+import os.path as osp
+import pytest
+
 from crisprf.model.radon3d import (
     cal_lipschitz,
     freq2time,
@@ -12,74 +15,67 @@ from crisprf.model.radon3d import (
     time2freq,
 )
 from crisprf.util.bridging import retrieve_single_xy
-from crisprf.util.constants import FREQ_DTYPE, TIME_DTYPE, P, Q, T, dt, nfft
+from crisprf.util.constants import FREQ_DTYPE, TIME_DTYPE, T, dt, nfft
 
-radon_matlab_trace = loadmat("log/radon_test.mat")
-
-# matlab trace
-radon_matlab = torch.tensor(radon_matlab_trace["LLL"])
-assert radon_matlab.dtype == FREQ_DTYPE
-lip_final = radon_matlab_trace["L"]
-
-# randon init
-x1 = torch.tensor(radon_matlab_trace["x1"])
-assert x1.dtype == TIME_DTYPE
-x1_freq = torch.tensor(radon_matlab_trace["x1_freq"])
-assert x1_freq.dtype == FREQ_DTYPE
-
-# steps
-y2_freq = torch.tensor(radon_matlab_trace["y2_freq"])
-assert y2_freq.dtype == FREQ_DTYPE
-x2 = torch.tensor(radon_matlab_trace["x2"])
-assert x2.dtype == TIME_DTYPE
-x2_normed = torch.tensor(radon_matlab_trace["x2_normed"])
-assert x2_normed.dtype == TIME_DTYPE
-x2_freq = torch.tensor(radon_matlab_trace["x2_freq"])
-assert x2_freq.dtype == FREQ_DTYPE
+TRACE_PATH = "log/radon_test.mat"
+TRACE_EXISTS = osp.exists(TRACE_PATH)
+TRACE_REASON = "no matlab trace exists"
 
 
-def test_init_radon3d():
-    # test the initialization
-    # of the 3d radon matrix
-    radon_pytorch = init_radon3d_mat(**retrieve_single_xy(), dt=dt)
-    assert torch.allclose(radon_pytorch, radon_matlab)
+@pytest.mark.skipif(not TRACE_EXISTS, reason=TRACE_REASON)
+class TestRadon3d:
+    def setup_method(self):
+        radon_matlab_trace = loadmat(TRACE_PATH)
 
+        self.radon3d = torch.tensor(radon_matlab_trace["LLL"])
+        self.lip = torch.tensor(radon_matlab_trace["L"])
 
-def test_lip0():
-    # make sure x1 is rand [0, 1)
-    assert torch.allclose(torch.zeros(1, dtype=TIME_DTYPE), x1.min(), atol=1e-6)
-    assert torch.allclose(torch.ones(1, dtype=TIME_DTYPE), x1.max(), atol=1e-6)
+        self.x0 = torch.tensor(radon_matlab_trace["x0"])
+        self.x0_freq = torch.tensor(radon_matlab_trace["x0_freq"])
 
-    # freq domain x
-    # ensure time2freq function is correct
-    assert torch.allclose(time2freq(x1, nfft), x1_freq)
+        self.y1_freq = torch.tensor(radon_matlab_trace["y1_freq"])
+        self.x1 = torch.tensor(radon_matlab_trace["x1"])
 
+    def test_dtype(self):
+        assert self.radon3d.dtype == FREQ_DTYPE
+        # no need to test lip, just a scalar
 
-def test_lip1():
-    # index 2-8193 for matlab, so 1-8192 for pytorch
-    _y2_freq = radon3d_forward(x1_freq, radon_matlab, 1, nfft // 2)
-    # y[0] == zeros
-    assert torch.allclose(_y2_freq[0], torch.zeros_like(_y2_freq[0]))
-    # y[nfft // 2] == zeros
-    assert torch.allclose(_y2_freq[nfft // 2], torch.zeros_like(_y2_freq[0]))
-    # other than those two, y is not zeros
-    assert not torch.allclose(_y2_freq[nfft // 2 - 1], torch.zeros_like(_y2_freq[0]))
-    assert not torch.allclose(_y2_freq[nfft // 2 + 1], torch.zeros_like(_y2_freq[0]))
-    assert not torch.allclose(_y2_freq[-1], torch.zeros_like(_y2_freq[0]))
+        assert self.x0.dtype == TIME_DTYPE
+        assert self.x0_freq.dtype == FREQ_DTYPE
+        assert self.y1_freq.dtype == FREQ_DTYPE
+        assert self.x1.dtype == TIME_DTYPE
 
-    # test for value correctness
-    assert _y2_freq.dtype == FREQ_DTYPE
+    def test_init_radon3d(self):
+        _radon3d = init_radon3d_mat(**retrieve_single_xy(), dt=dt)
+        assert torch.allclose(self.radon3d, _radon3d)
 
-    assert y2_freq.shape == _y2_freq.shape
-    assert torch.allclose(_y2_freq[1:], y2_freq[1:])
+    def test_fft(self):
+        # test fft x0 to freq domain
+        assert torch.allclose(self.x0_freq, time2freq(self.x0, nfft))
 
+    def test_radon3d_forward(self):
+        _y1_freq = radon3d_forward(self.x0_freq, self.radon3d, 1, nfft // 2)
+        assert _y1_freq.dtype == FREQ_DTYPE
 
-def test_lipschitz():
-    lip_pytorch = cal_lipschitz(radon_matlab, T, 1, 8192)
-    # some randomness in init random x, so be generous
-    assert np.allclose(lip_pytorch, lip_final, rtol=1e-3)
+        line_of_zeros = torch.zeros_like(_y1_freq[0])
+        assert torch.allclose(line_of_zeros, _y1_freq[0])
+        assert torch.allclose(line_of_zeros, _y1_freq[nfft // 2])
+        assert not torch.allclose(line_of_zeros, _y1_freq[nfft // 2 - 1])
+        assert not torch.allclose(line_of_zeros, _y1_freq[nfft // 2 + 1])
+        assert not torch.allclose(line_of_zeros, _y1_freq[-1])
 
+        assert _y1_freq.shape == self.y1_freq.shape
+        assert torch.allclose(_y1_freq, self.y1_freq)
 
-if __name__ == "__main__":
-    # test_lipschitz()
-    pass
+    def test_radon3d_adjoint(self):
+        _x1_freq = radon3d_forward_adjoint(self.y1_freq, self.radon3d, 1, nfft // 2)
+        assert _x1_freq.dtype == FREQ_DTYPE
+
+        _x1 = freq2time(_x1_freq, T)
+        assert _x1.shape == self.x1.shape
+        assert torch.allclose(_x1, self.x1)
+
+    def test_lipschitz(self):
+        _lip = cal_lipschitz(self.radon3d, T, 1, nfft // 2)
+        # some randomness in init random x, so be generous
+        assert np.allclose(_lip, self.lip, rtol=1e-3)

@@ -3,7 +3,7 @@ import torch
 import pandas as pd
 
 from crisprf.model.FISTA import fista
-from crisprf.model.radon_solver import sparse_inverse_radon_fista
+from crisprf.model.solver import sparse_inverse_radon_fista
 from crisprf.util.bridging import retrieve_single_xy
 from crisprf.util.evaluation import eval_metrics
 

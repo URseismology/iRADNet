@@ -5,7 +5,7 @@ from tqdm import tqdm
 from typing import Generator
 
 from crisprf.model.FISTA import fista
-from crisprf.model.radon_solver import sparse_inverse_radon_fista
+from crisprf.model.solver import sparse_inverse_radon_fista
 from crisprf.util.dataloading import SRTDataset
 from crisprf.util.evaluation import eval_metrics
 
@@ -15,7 +15,7 @@ dt = 0.02
 
 def grid_search():
     for l in torch.linspace(0.8, 2.6, 10):
-        for mu in tqdm(torch.linspace(0.5, 0.9, 9)):
+        for mu in tqdm(torch.linspace(0.1, 0.9, 9)):
             for d in inference(l, mu):
                 with open(f"log/l={l:.2f}_mu={mu:.2f}.csv", "a") as f:
                     f.write(",".join(map(str, d)) + "\n")
@@ -26,7 +26,7 @@ def inference(
 ) -> Generator[tuple[int, float, float, int], None, None]:
     dataset = SRTDataset(device=DEVICE)
 
-    for sample in dataset:
+    for i, sample in enumerate(dataset):
         for x_hat, elapsed in sparse_inverse_radon_fista(
             **sample,
             dt=dt,
@@ -39,6 +39,7 @@ def inference(
             mse, nmse, nonzeros = eval_metrics(
                 x_hat,
                 sample["x"],
+                f"fig/samples/fista_l={lambd:.2f}_mu={mu:.2f}.png" if i == 0 else None,
             )
             break
         yield elapsed, mse, nmse, nonzeros
