@@ -13,7 +13,7 @@ function m = test_lip()
 
     % def radon3d setup params
     N = 2;
-    q = linspace(-1000, 1000, 200);
+    qs = linspace(-1000, 1000, 200);
     rayP = linspace(0.098, 0.135, 38);
 
     % def radon3d matrix
@@ -21,7 +21,7 @@ function m = test_lip()
 
     for ifreq = 1:nfft
         f = 2 .* pi * (ifreq - 1) / nfft / dt;
-        LLL(ifreq, :, :) = exp(sqrt(-1) * f * (rayP .^ N)' * q);
+        LLL(ifreq, :, :) = exp(sqrt(-1) * f * (rayP .^ N)' * qs);
     end
 
     x0 = rand(nt, nq);
@@ -43,6 +43,6 @@ function m = test_lip()
     [~, x3] = radon3d_forward_adjoint(LLL, y3_freq, nt, ilow, ihigh);
 
     L = sum((x2_normed .* x3), "all") / sum((x2_normed .* x2_normed), "all");
-    save('log/radon_test.mat', 'x0', 'x0_freq', 'y1_freq', 'x1', 'L', 'LLL');
+    save('log/radon_test.mat', 'x0', 'x0_freq', 'y1_freq', 'x1', 'L', 'LLL', 'qs', 'rayP', 'nt', 'dt', 'nfft');
     disp(L);
 end

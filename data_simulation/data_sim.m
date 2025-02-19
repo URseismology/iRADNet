@@ -69,7 +69,7 @@ function data_sim(n_samples, tshift, nt, dt, save_path)
         [gwr, gtwr] = gauswvlet(dt, fbw, 2 * tlen);
 
         % --Creating Radon doamin
-        Min_2 = zeros(nq, nt); %Sharper q image
+        Min = zeros(nq, nt); %Sharper q image
 
         for ilyr = 1:nlayers
 
@@ -85,19 +85,15 @@ function data_sim(n_samples, tshift, nt, dt, save_path)
 
                 % [q(ilyr, jphs), tau(ilyr, jphs), m(ilyr, jphs)]
 
-                %     Min(indq-1, :) = gauswvlt(end-nt+1:end);
-                %     Min(indq, :) = gauswvlt(end-nt+1:end);
-                %     Min(indq+1, :) = gauswvlt(end-nt+1:end);
-
-                Min_2(indq, :) = gauswvlt(end - nt + 1:end);
+                Min(indq, :) = gauswvlt(end - nt + 1:end);
             end
 
         end
 
-        mm = max(abs(Min_2), [], 'all'); Min_2 = Min_2 ./ mm;
+        mm = max(abs(Min), [], 'all'); Min = Min ./ mm;
 
-        [tx] = forward_radon_freq_umd_Sp(Min_2', dt, rayP, qs, q1, q0, fmin, fmax);
+        [tx] = forward_radon_freq_umd_Sp(Min', dt, rayP, qs, q1, q0, fmin, fmax);
         tx = tx';
 
-        save(string(save_path) + num2str(isample) + '.mat', 'tx', 'taus', 'rayP', 'tshift', 'Min_2');
+        save(string(save_path) + num2str(isample) + '.mat', 'tx', 'taus', 'rayP', 'tshift', 'Min', 'qs');
     end
