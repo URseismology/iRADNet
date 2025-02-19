@@ -8,7 +8,7 @@ Pytorch implementation of FISTA/LISTA in the CRISP-RF [^1].
 [Matlab-FISTA]: crisprf/base/sparse_inverse_radon_fista.m
 [Python-FISTA]: crisprf/model/FISTA.py
 
-In the sparse Radon transform (SRT) problem, we intend to solve the following optimization problem:
+With sparse Radon transform (SRT), we intend to solve the following optimization problem:
 
 $$
 \def\y{\mathbf{y}}
@@ -23,11 +23,12 @@ where $\mathbf{y} \in \mathbb{R}^{T\times P}$ is receiver function image, $\math
 
 ## SRT-FISTA/LISTA
 
-![](fig/srt-fista-alg.png)
-
 We construct SRT-LISTA by unrolling the ISTA/FISTA iterations into a DL model. If we apply constraints to substitute learned structures with static ones (i.e., $\mathbf{W}_1=\mathbf{L}, \mathbf{W}_2=\mathbf{L}^*, {\theta}^{(k)} = \gamma\lambda$), it devolves into SRT-FISTA.
 
-![](fig/srt-lista-unroll.png)
+<div align="center">
+  <img src="fig/srt-fista-alg.png" width="62.4%" />
+  <img src="fig/srt-lista-unroll.png" width="35.1%" /> 
+</div>
 
 ## Speed Comparison
 
