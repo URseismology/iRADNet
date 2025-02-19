@@ -2,24 +2,17 @@ import torch
 import torch.fft as fft
 import torch.nn.functional as F
 
-from crisprf.util.constants import FREQ_DTYPE, TIME_DTYPE, nextpow2
-
-
-def get_shapes(
-    y: torch.Tensor, q: torch.Tensor, rayP: torch.Tensor = None, **_
-) -> tuple[int, int, int, int, torch.Tensor]:
-    nt, np = y.shape
-    nfft = 2 * nextpow2(nt)
-    nq = q.shape[0]
-
-    if rayP is not None:
-        assert rayP.shape == (np,), f"{rayP.shape} != ({np},)"
-
-    return nfft, nt, np, nq
+from crisprf.util.bridging import RFData, RFDataUtils
+from crisprf.util.constants import FREQ_DTYPE, TIME_DTYPE
 
 
 def init_radon3d_mat(
-    y: torch.Tensor, q: torch.Tensor, rayP: torch.Tensor, dt: float, N: int = 2, **_
+    q: torch.Tensor,
+    rayP: torch.Tensor,
+    nfft: int,
+    dt: float,
+    N: int = 2,
+    device: torch.device = torch.device("cpu"),
 ) -> torch.Tensor:
     """
     Initializes the 3D Radon transform matrix.
@@ -40,15 +33,12 @@ def init_radon3d_mat(
     torch.Tensor
         3D Radon transform matrix (nfft, np, nq)
     """
-    nfft, nt, np, nq = get_shapes(y=y, q=q, rayP=rayP)
+    np = rayP.numel()
+    nq = q.numel()
     # init radon transform matrix
-    radon3d = torch.zeros((nfft, np, nq), device=y.device, dtype=FREQ_DTYPE)
+    radon3d = torch.zeros((nfft, np, nq), device=device, dtype=FREQ_DTYPE)
     ifreq_f = (
-        2.0
-        * torch.pi
-        * torch.arange(nfft, device=y.device, dtype=TIME_DTYPE)
-        / nfft
-        / dt
+        2.0 * torch.pi * torch.arange(nfft, device=device, dtype=TIME_DTYPE) / nfft / dt
     )
     # (nfft) @ (np) @ (nq) = (nfft, np, nq)
     radon3d[:, :, :] = torch.exp(
@@ -159,12 +149,6 @@ def cal_lipschitz(L: torch.Tensor, nt: int, ilow: int, ihigh: int):
     x1 = freq2time(x1_freq, nt)
     lipschitz = torch.sum(x * x1) / torch.sum(x**2)
     return lipschitz.item()
-
-
-def cal_step_size(L: torch.Tensor, nt: int, ilow: int, ihigh: int, alpha: float = 0.9):
-    lipschitz = cal_lipschitz(L, nt, ilow, ihigh)
-    print(f"Lipschitz={lipschitz}; step={alpha / lipschitz}")
-    return alpha / lipschitz
 
 
 def shrink(x: torch.Tensor, eta: torch.Tensor, lambd: float = 1.0):

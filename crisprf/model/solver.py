@@ -3,10 +3,11 @@ import torch
 from time import time_ns
 from typing import Generator
 
-from crisprf.util.constants import FREQ_DTYPE, TIME_DTYPE
+from ..util.constants import FREQ_DTYPE, TIME_DTYPE, AUTO_DEVICE
 
+from ..util.bridging import RFDataUtils
 from .FISTA import fista
-from .radon3d import get_shapes, init_radon3d_mat
+from .radon3d import init_radon3d_mat
 
 
 def get_x0(
@@ -53,7 +54,7 @@ def sparse_inverse_radon_fista(
     freq_bounds: tuple[float, float],
     alphas: tuple[float, float],
     n_layers: int,
-    device: torch.device = torch.device("cpu"),
+    device: torch.device = AUTO_DEVICE,
     ista_fn: callable = fista,
     **_,
 ) -> Generator[tuple[torch.Tensor, int], None, None]:
@@ -77,21 +78,21 @@ def sparse_inverse_radon_fista(
     n_layers : int
         max number of iterations
     device : torch.device, optional
-        device to run the computation, by default torch.device("cpu")
+        device to run the computation, by default AUTO_DEVICE
 
     Returns
     -------
     torch.Tensor
         reconstructed radon image
     """
-    nfft, nt, np, nq = get_shapes(y, q, rayP)
+    nfft, nt, np, nq = RFDataUtils.get_shapes(y, q)
 
     # init signal in frequency domain
     y_freq: torch.Tensor = torch.fft.fft(y, nfft, dim=0)
     assert y_freq.shape == (nfft, np)
 
     # init radon transform matrix
-    radon_mat = init_radon3d_mat(y=y, q=q, rayP=rayP, dt=dt)
+    radon_mat = init_radon3d_mat(q=q, rayP=rayP, nfft=nfft, dt=dt, device=device)
 
     # determine a [ilow, ihigh) frequency range, bounded by
     # [1, nfft // 2) <-> (nfft // 2, nfft - 1] such that it's symmetric

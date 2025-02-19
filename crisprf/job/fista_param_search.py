@@ -16,8 +16,9 @@ dt = 0.02
 def grid_search():
     for l in torch.linspace(0.8, 2.6, 10):
         for mu in tqdm(torch.linspace(0.1, 0.9, 9)):
-            for d in inference(l, mu):
-                with open(f"log/l={l:.2f}_mu={mu:.2f}.csv", "a") as f:
+            with open(f"log/l={l:.2f}_mu={mu:.2f}.csv", "a") as f:
+                f.write(f"{l:.2f},{mu:.2f},")
+                for d in inference(l, mu):
                     f.write(",".join(map(str, d)) + "\n")
 
 

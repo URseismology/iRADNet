@@ -3,13 +3,13 @@ from torch.utils.data import Dataset
 
 from glob import glob
 
-from crisprf.util.bridging import RFData, retrieve_single_xy
+from .bridging import RFData, retrieve_single_xy
 
 
 class SRTDataset(Dataset):
     def __init__(
         self,
-        re_path: str = "data/Ps_RF_*.mat",
+        re_path: str = "data/sample.mat",
         device: torch.device = torch.device("cpu"),
     ):
         super().__init__()
@@ -21,11 +21,3 @@ class SRTDataset(Dataset):
 
     def __getitem__(self, idx) -> RFData:
         return retrieve_single_xy(self.paths[idx], device=self.device)
-
-
-if __name__ == "__main__":
-    from pprint import pprint
-
-    dataset = SRTDataset()
-    sample = dataset[0]
-    pprint(sample)

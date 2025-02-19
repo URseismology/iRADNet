@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 
 from .radon3d import (
-    cal_step_size,
+    cal_lipschitz,
     freq2time,
     radon3d_forward,
     radon3d_forward_adjoint,
@@ -19,6 +19,7 @@ def fista(
     ihigh: int,
     n_layers: int,
     lambd: float,
+    alpha: float = 0.9,
 ):
     nfft, _, _ = L.shape
 
@@ -26,7 +27,7 @@ def fista(
         x = x0
         z = x
         q_t = torch.ones(1, device=x.device)
-        step_size = cal_step_size(L=L, nt=nt, ilow=ilow, ihigh=ihigh)
+        step_size = alpha / cal_lipschitz(L=L, nt=nt, ilow=ilow, ihigh=ihigh)
 
         for _ in range(n_layers):
             # z update

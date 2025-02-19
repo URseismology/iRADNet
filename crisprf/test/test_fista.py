@@ -6,9 +6,9 @@ from crisprf.model.FISTA import fista
 from crisprf.model.solver import sparse_inverse_radon_fista
 from crisprf.util.bridging import retrieve_single_xy
 from crisprf.util.evaluation import eval_metrics
+from crisprf.util.constants import AUTO_DEVICE
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-SAMPLE = retrieve_single_xy("data/Ps_RF_syn1.mat", device=DEVICE)
+SAMPLE = retrieve_single_xy(device=AUTO_DEVICE)
 dt = 0.02
 
 
@@ -22,7 +22,7 @@ def test_fista():
             freq_bounds=(0, 1 / 2 / dt),
             alphas=(1.0, 0.2),
             n_layers=10,
-            device=DEVICE,
+            device=AUTO_DEVICE,
             ista_fn=fista,
         )
     ):

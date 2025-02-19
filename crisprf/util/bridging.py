@@ -9,7 +9,7 @@ from typing import TypedDict
 
 from .constants import FREQ_DTYPE, TIME_DTYPE
 
-EXAMPLE = "/home/wmeng/crisprf/data/Ps_RF_syn1.mat"
+EXAMPLE = "data/sample.mat"
 
 
 class RFData(TypedDict):
@@ -19,34 +19,74 @@ class RFData(TypedDict):
     t: torch.Tensor  # (T,) time dimension
     x: torch.Tensor  # (T, Q) sparse codes
     y: torch.Tensor  # (T, P) signal
+    y_hat: torch.Tensor | None  # (T, P) signal after filtering
+
+
+class RFDataUtils:
+    @staticmethod
+    def peek(sample: RFData):
+        return {k: v.shape for k, v in sample.items() if type(v) is torch.Tensor}
+
+    @staticmethod
+    def verify(sample: RFData):
+        _, T, P, Q = RFDataUtils.get_shapes(sample["y"], sample["q"])
+
+        # Y is (T, P)
+        assert sample["y"].shape == (T, P)
+        # X is (T, Q)
+        assert sample["x"].shape == (T, Q)
+
+        # y_hat ~ y same shape
+        if sample["y_hat"] is not None:
+            assert sample["y_hat"].shape == sample["y"].shape
+
+    @staticmethod
+    def get_shapes(y: torch.Tensor, q: torch.Tensor) -> tuple[int, int, int, int]:
+        nt, np = y.shape
+        nq = q.numel()
+        nfft = 2 * RFDataUtils.nextpow2(nt)
+        return nfft, nt, np, nq
+
+    @staticmethod
+    def nextpow2(x: int):
+        if x == 0:
+            return 0
+        return 2 ** (x - 1).bit_length()
 
 
 def retrieve_single_xy(
     path: str = EXAMPLE, device: torch.device = torch.device("cpu")
 ) -> RFData:
-    key_translation = {
+    # key translations, for 1d data and 2d data
+    v1d_translation = {
         "rayP": "rayP",
         "taus": "t",  # time dimension
+        "qs": "q",
     }
-    xy_translation = {
-        "Min_2": "x",  # sparse codes
+    v2d_translation = {
+        "Min": "x",  # sparse codes
         "tx": "y",  # signal
+        "tx_filt": "y_hat",  # signal after filtering
     }
     data = loadmat(path)
+    nt = data["taus"].size
 
     return (
         {
+            "data_id": osp.basename(path),
+        }
+        | {
             k2: torch.tensor(data[k1], device=device, dtype=TIME_DTYPE).squeeze()
-            for k1, k2 in key_translation.items()
+            for k1, k2 in v1d_translation.items()
         }
         | {
             # (.., nt) -> (nt, ..)
-            k2: torch.tensor(data[k1], device=device, dtype=TIME_DTYPE).T
-            for k1, k2 in xy_translation.items()
-        }
-        | {
-            "q": torch.linspace(-1000, 1000, 200, device=device, dtype=TIME_DTYPE),
-            "data_id": osp.basename(path),
+            k2: (
+                torch.tensor(data[k1], device=device, dtype=TIME_DTYPE).reshape(nt, -1)
+                if k1 in data
+                else None
+            )
+            for k1, k2 in v2d_translation.items()
         }
     )
 
@@ -81,19 +121,3 @@ def plot_sample(sample: RFData):
     ax1.set_title("(b) Radon transform")
     plt.tight_layout()
     plt.savefig("fig/example.pdf", pad_inches=0)
-
-
-if __name__ == "__main__":
-    from pprint import pprint
-
-    data = retrieve_single_xy()
-    pprint(peek(**data))
-    plot_sample(data)
-    # heatmap(rng=[-1, 1], **data)
-    # heatmap_one_plot(data["x"], data["y"], rng=[-1, 1])
-    # for k in ["x", "y"]:
-    #     fig, ax = plt.subplots(figsize=(8, 5), dpi=300)
-    #     sns.heatmap(data[k], cmap="coolwarm", vmin=-1, vmax=1, ax=ax)
-    #     plt.tight_layout()
-    #     plt.savefig(f"fig/{k}.png")
-    #     plt.clf()
