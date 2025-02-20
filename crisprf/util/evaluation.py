@@ -4,6 +4,8 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from .bridging import plot_sample
+
 FID_LOSS = nn.MSELoss()
 REG_LOSS = nn.L1Loss(reduction="sum")
 
@@ -15,7 +17,7 @@ def get_loss(pred: torch.Tensor, gt: torch.Tensor, lambd: float = 1.0) -> torch.
 
 
 def eval_metrics(
-    pred: torch.Tensor, gt: torch.Tensor, save_path: str = None
+    pred: torch.Tensor, gt: torch.Tensor, save_path: str = None, **kwargs
 ) -> tuple[float, float, int]:
     mse = FID_LOSS(pred, gt)
     mse_0 = FID_LOSS(pred, torch.zeros_like(pred))
@@ -23,13 +25,7 @@ def eval_metrics(
     nonzeros = torch.count_nonzero(pred)
 
     if save_path is not None:
-
-        fig, (a0, a1) = plt.subplots(1, 2, sharey=True)
-        sns.heatmap(pred.detach().cpu().numpy(), center=0, ax=a0)
-        sns.heatmap(gt.detach().cpu().numpy(), center=0, ax=a1)
-        a0.set_title("pred")
-        a1.set_title("gt")
-        plt.savefig(save_path)
+        plot_sample(prefix_scope=("x",), save_path=save_path, x_pred=pred, **kwargs)
         print(f"fig saved to {save_path}")
 
     return mse.item(), nmse.item(), nonzeros.item()

@@ -9,7 +9,7 @@ from .bridging import RFData, retrieve_single_xy
 class SRTDataset(Dataset):
     def __init__(
         self,
-        re_path: str = "data/sample.mat",
+        re_path: str = "data/*.mat",
         device: torch.device = torch.device("cpu"),
     ):
         super().__init__()

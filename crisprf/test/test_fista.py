@@ -27,9 +27,10 @@ def test_fista():
         )
     ):
         mse, nmse, nonzeros = eval_metrics(
-            x_hat,
-            SAMPLE["x"],
-            f"fig/fista_{i}.png",
+            pred=x_hat,
+            gt=SAMPLE["x"],
+            save_path=f"fig/fista_{i}.png",
+            **SAMPLE,
         )
 
         print(f"{elapsed} {mse:e}/{nmse:4e} {nonzeros:2e}")

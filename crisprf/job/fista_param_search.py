@@ -37,11 +37,7 @@ def inference(
             device=DEVICE,
             ista_fn=fista,
         ):
-            mse, nmse, nonzeros = eval_metrics(
-                x_hat,
-                sample["x"],
-                f"fig/samples/fista_l={lambd:.2f}_mu={mu:.2f}.png" if i == 0 else None,
-            )
+            mse, nmse, nonzeros = eval_metrics(x_hat, sample["x"])
             break
         yield elapsed, mse, nmse, nonzeros
 

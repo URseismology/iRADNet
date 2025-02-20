@@ -82,11 +82,12 @@ def retrieve_single_xy(
         | {
             # (.., nt) -> (nt, ..)
             k2: (
-                torch.tensor(data[k1], device=device, dtype=TIME_DTYPE).reshape(nt, -1)
-                if k1 in data
-                else None
+                torch.tensor(data[k1], device=device, dtype=TIME_DTYPE)
+                if data[k1].shape[0] == nt
+                else torch.tensor(data[k1], device=device, dtype=TIME_DTYPE).T
             )
             for k1, k2 in v2d_translation.items()
+            if k1 in data
         }
     )
 
@@ -95,29 +96,58 @@ def peek(**kwargs):
     return {k: v.shape for k, v in kwargs.items() if type(v) is torch.Tensor}
 
 
-def plot_sample(sample: RFData):
-    fig, (ax0, ax1) = plt.subplots(2, 1, figsize=(10, 10), sharex=True, dpi=100)
-    sns.heatmap(
-        sample["y"].T,
-        ax=ax0,
-        yticklabels=list(map(lambda x: f"{x:.3f}", sample["rayP"].numpy())),
-        linewidths=0,
-        center=0,
-    )
-    sns.heatmap(
-        sample["x"].T,
-        ax=ax1,
-        xticklabels=list(map(lambda x: f"{x:.0f}", sample["t"].numpy())),
-        yticklabels=list(map(lambda x: f"{x:.0f}", sample["q"].numpy())),
-        linewidths=0,
-        center=0,
-    )
-    ax0.locator_params(axis="y", nbins=10)
-    ax0.set_ylabel("Ray parameter (km)")
-    ax0.set_title("(a) Seismic traces")
-    ax1.locator_params(axis="both", nbins=10)
-    ax1.set_ylabel("q (s/km)")
-    ax1.set_xlabel("Time (s)")
-    ax1.set_title("(b) Radon transform")
+def plot_sample(
+    prefix_scope: tuple[str] = ("x", "y"), save_path: str = "fig/example.png", **kwargs
+):
+    xy_keys = sorted(list(filter(lambda k: k[0] in prefix_scope, kwargs.keys())))
+    n_plots = len(xy_keys)
+
+    fig, axes = plt.subplots(n_plots, 1, figsize=(10, 5 * n_plots), sharex=True)
+    axes: list[plt.Axes] = [axes] if n_plots == 1 else axes.ravel()
+
+    for ax, k in zip(axes, xy_keys):
+        if "x" in k:
+            plot_x(data=kwargs[k], ax=ax, **kwargs)
+        else:
+            plot_y(data=kwargs[k], ax=ax, **kwargs)
+
+    # axes[-1].locator_params(axis="x", nbins=10)
+    axes[-1].set_xlabel("Time (s)")
     plt.tight_layout()
-    plt.savefig("fig/example.pdf", pad_inches=0)
+    plt.savefig(save_path, pad_inches=0)
+
+
+def plot_x(data: torch.Tensor, ax: plt.Axes, t: torch.Tensor, q: torch.Tensor, **_):
+    # plot sparse codes x (T, Q)
+    nt = t.numel()
+    if data.shape[-1] != nt:
+        data = data.T
+
+    sns.heatmap(
+        data.detach().cpu(),
+        ax=ax,
+        xticklabels=list(map(lambda x: f"{x:.0f}", t.detach().cpu().numpy())),
+        yticklabels=list(map(lambda x: f"{x:.0f}", q.detach().cpu().numpy())),
+        linewidths=0,
+        center=0,
+    )
+    ax.locator_params(axis="both", nbins=10)
+    ax.set_ylabel("q (s/km)")
+
+
+def plot_y(data: torch.Tensor, ax: plt.Axes, t: torch.Tensor, rayP: torch.Tensor, **_):
+    # plot sparse codes y (T, P)
+    nt = t.numel()
+    if data.shape[-1] != nt:
+        data = data.T
+
+    sns.heatmap(
+        data.detach().cpu(),
+        ax=ax,
+        xticklabels=list(map(lambda x: f"{x:.0f}", t.detach().cpu().numpy())),
+        yticklabels=list(map(lambda x: f"{x:.3f}", rayP.detach().cpu().numpy())),
+        linewidths=0,
+        center=0,
+    )
+    ax.locator_params(axis="both", nbins=10)
+    ax.set_ylabel("Ray parameter (deg)")
