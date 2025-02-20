@@ -3,9 +3,8 @@ import torch
 from time import time_ns
 from typing import Generator
 
-from ..util.constants import FREQ_DTYPE, TIME_DTYPE, AUTO_DEVICE
-
 from ..util.bridging import RFDataUtils
+from ..util.constants import AUTO_DEVICE, FREQ_DTYPE, TIME_DTYPE
 from .FISTA import fista
 from .radon3d import init_radon3d_mat
 

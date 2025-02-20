@@ -14,7 +14,7 @@ from crisprf.model.radon3d import (
     radon3d_forward_adjoint,
     time2freq,
 )
-from crisprf.util.constants import FREQ_DTYPE, TIME_DTYPE, AUTO_DEVICE
+from crisprf.util.constants import AUTO_DEVICE, FREQ_DTYPE, TIME_DTYPE
 
 TRACE_PATH = "log/radon_test.mat"
 TRACE_EXISTS = osp.exists(TRACE_PATH)

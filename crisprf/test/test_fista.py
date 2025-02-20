@@ -5,8 +5,8 @@ import pandas as pd
 from crisprf.model.FISTA import fista
 from crisprf.model.solver import sparse_inverse_radon_fista
 from crisprf.util.bridging import retrieve_single_xy
-from crisprf.util.evaluation import eval_metrics
 from crisprf.util.constants import AUTO_DEVICE
+from crisprf.util.evaluation import eval_metrics
 
 SAMPLE = retrieve_single_xy(device=AUTO_DEVICE)
 dt = 0.02
