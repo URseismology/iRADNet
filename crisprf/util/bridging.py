@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 import os.path as osp
 from typing import TypedDict
 
-from .constants import FREQ_DTYPE, TIME_DTYPE
+from .constants import AUTO_DEVICE, TIME_DTYPE
 
 EXAMPLE = "data/sample.mat"
 
@@ -22,40 +22,52 @@ class RFData(TypedDict):
     y_hat: torch.Tensor | None  # (T, P) signal after filtering
 
 
-class RFDataUtils:
+def nextpow2(x: int) -> int:
+    if x == 0:
+        return 0
+    return 2 ** (x - 1).bit_length()
+
+
+class RFDataShape:
+    def __init__(self, nt: int, np: int, nq: int, nfft: int, dt: float):
+        self.nt = nt
+        self.np = np
+        self.nq = nq
+        self.nfft = nfft
+        self.dt = dt
+
+    @staticmethod
+    def from_sample(
+        y: torch.Tensor, q: torch.Tensor, t: torch.Tensor, **_
+    ) -> "RFDataShape":
+        nt, np = y.shape
+        nq = q.numel()
+        nfft = 2 * nextpow2(nt)
+        dt = (t[1] - t[0]).item()
+        return RFDataShape(nt=nt, np=np, nq=nq, nfft=nfft, dt=dt)
+
     @staticmethod
     def peek(sample: RFData):
         return {k: v.shape for k, v in sample.items() if type(v) is torch.Tensor}
 
     @staticmethod
-    def verify(sample: RFData):
-        _, T, P, Q = RFDataUtils.get_shapes(sample["y"], sample["q"])
+    def verify(sample: RFData) -> None:
+        assert len(sample["t"].shape) == 1
+        assert len(sample["rayP"].shape) == 1
+        assert len(sample["q"].shape) == 1
 
-        # Y is (T, P)
-        assert sample["y"].shape == (T, P)
-        # X is (T, Q)
-        assert sample["x"].shape == (T, Q)
+        nt = sample["t"].numel()
+        np = sample["rayP"].numel()
+        nq = sample["q"].numel()
 
-        # y_hat ~ y same shape
+        assert sample["y"].shape == (nt, np)
+        assert sample["x"].shape == (nt, nq)
         if sample["y_hat"] is not None:
             assert sample["y_hat"].shape == sample["y"].shape
 
-    @staticmethod
-    def get_shapes(y: torch.Tensor, q: torch.Tensor) -> tuple[int, int, int, int]:
-        nt, np = y.shape
-        nq = q.numel()
-        nfft = 2 * RFDataUtils.nextpow2(nt)
-        return nfft, nt, np, nq
-
-    @staticmethod
-    def nextpow2(x: int):
-        if x == 0:
-            return 0
-        return 2 ** (x - 1).bit_length()
-
 
 def retrieve_single_xy(
-    path: str = EXAMPLE, device: torch.device = torch.device("cpu")
+    path: str = EXAMPLE, device: torch.device = AUTO_DEVICE
 ) -> RFData:
     # key translations, for 1d data and 2d data
     v1d_translation = {
@@ -90,10 +102,6 @@ def retrieve_single_xy(
             if k1 in data
         }
     )
-
-
-def peek(**kwargs):
-    return {k: v.shape for k, v in kwargs.items() if type(v) is torch.Tensor}
 
 
 def plot_sample(

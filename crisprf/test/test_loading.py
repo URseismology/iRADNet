@@ -2,14 +2,14 @@ import torch
 
 import pytest
 
-from crisprf.util.bridging import RFData, RFDataUtils
+from crisprf.util.bridging import RFDataShape
 from crisprf.util.dataloading import SRTDataset
 
 
 def test_srt_dataset():
     dataset = SRTDataset("data/*.mat")
     for sample in dataset:
-        RFDataUtils.verify(sample)
+        RFDataShape.verify(sample)
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")

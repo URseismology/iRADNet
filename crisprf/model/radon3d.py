@@ -2,39 +2,41 @@ import torch
 import torch.fft as fft
 import torch.nn.functional as F
 
-from crisprf.util.bridging import RFData, RFDataUtils
-from crisprf.util.constants import FREQ_DTYPE, TIME_DTYPE
+from crisprf.util.bridging import RFDataShape
+from crisprf.util.constants import AUTO_DEVICE, FREQ_DTYPE, TIME_DTYPE
 
 
 def init_radon3d_mat(
     q: torch.Tensor,
     rayP: torch.Tensor,
-    nfft: int,
-    dt: float,
+    shapes: RFDataShape,
     N: int = 2,
-    device: torch.device = torch.device("cpu"),
+    device: torch.device = AUTO_DEVICE,
 ) -> torch.Tensor:
     """
     Initializes the 3D Radon transform matrix.
 
     Parameters
     ----------
-    y : torch.Tensor
-        image in freq domain (nt, np)
     q : torch.Tensor
         q range (nq,)
     rayP : torch.Tensor
         ray parameters (np,)
-    dt : float
-        sampling interval, in seconds
+    shapes : RFDataShape
+        A shape recording object, containing nfft, np, nq, dt
+    N : int, optional
+        power of rayP, by default 2
+    device : torch.device, optional
+        device to run the computation, by default AUTO_DEVICE
 
     Returns
     -------
     torch.Tensor
         3D Radon transform matrix (nfft, np, nq)
     """
-    np = rayP.numel()
-    nq = q.numel()
+    nfft, np, nq = shapes.nfft, shapes.np, shapes.nq
+    dt = shapes.dt
+
     # init radon transform matrix
     radon3d = torch.zeros((nfft, np, nq), device=device, dtype=FREQ_DTYPE)
     ifreq_f = (
@@ -42,7 +44,10 @@ def init_radon3d_mat(
     )
     # (nfft) @ (np) @ (nq) = (nfft, np, nq)
     radon3d[:, :, :] = torch.exp(
-        1j * torch.einsum("f,p,q->fpq", ifreq_f, torch.pow(rayP, N), q).to(FREQ_DTYPE)
+        1j
+        * torch.einsum(
+            "f,p,q->fpq", ifreq_f, torch.pow(rayP.to(device), N), q.to(device)
+        ).to(FREQ_DTYPE)
     )
     return radon3d
 

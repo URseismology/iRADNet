@@ -4,13 +4,15 @@ from torch.utils.data import Dataset
 from glob import glob
 
 from .bridging import RFData, retrieve_single_xy
+from .constants import AUTO_DEVICE
 
 
 class SRTDataset(Dataset):
+
     def __init__(
         self,
         re_path: str = "data/*.mat",
-        device: torch.device = torch.device("cpu"),
+        device: torch.device = AUTO_DEVICE,
     ):
         super().__init__()
         self.paths = glob(re_path)

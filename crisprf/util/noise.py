@@ -4,12 +4,17 @@ from scipy.signal import butter, sosfiltfilt
 import torchaudio
 
 
-def add_noise(y: torch.Tensor, dt: float, snr: float = 2.0, uniform: bool = True):
+def gen_noise(
+    y: torch.Tensor,
+    dt: float,
+    snr: float = 2.0,
+    uniform: bool = True,
+    lowcut: float = 0.1,
+    highcut: float = 0.5,
+) -> torch.Tensor:
     # y should be shape (nt, np)
     # and y1d_norm norm over nt, giving (np,)
     y1d_norm = torch.linalg.vector_norm(y, ord=2, dim=0)
-    assert type(y1d_norm) == torch.Tensor
-    assert y1d_norm.shape == (2,), f"{y1d_norm.shape}"
 
     # init rand matrix, uniform or normal with mean 0; 0.5 is fine
     noise = torch.rand_like(y) - 0.5 if uniform else torch.randn_like(y)
@@ -17,14 +22,20 @@ def add_noise(y: torch.Tensor, dt: float, snr: float = 2.0, uniform: bool = True
     noise = noise * y1d_norm / torch.linalg.vector_norm(noise, ord=2, dim=0) / snr
 
     # filter with butterworth bandpass
-    sos = butter(2, (0.1, 0.5), btype="band", output="sos", fs=1 / dt)
-    # and we are doing on time domain so axis=0
-    noise_filt = torch.tensor(sosfiltfilt(sos, noise, axis=0).copy())
+    sos = butter(2, (lowcut, highcut), btype="band", output="sos", fs=1 / dt)
+    # apply on time domain so axis=0
+    noise_filt = torch.tensor(
+        sosfiltfilt(sos, noise.cpu(), axis=0).copy(), device=y.device
+    )
 
     # fix for variance to preserve SNR before/after bandpass
-    noise_filt *= torch.linalg.vector_norm(noise) / torch.linalg.vector_norm(noise_filt)
+    noise_filt = (
+        noise_filt
+        * torch.linalg.vector_norm(noise, ord=2, dim=0)
+        / torch.linalg.vector_norm(noise_filt, ord=2, dim=0)
+    )
 
-    return y + noise_filt
+    return noise_filt
 
 
 def butter_bandpass_filter_torch(y: torch.Tensor, dt: float):
@@ -55,21 +66,3 @@ def butter_bandpass_filter_torch(y: torch.Tensor, dt: float):
 # Example usage:
 # Assuming y is your input signal and dt is the sampling interval
 # y_filt = butter_bandpass_filter_torch(y, dt)
-
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-
-    y = (
-        torch.tensor(
-            [
-                [1, 2, 4, 8, 8, 4, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 1, 2, 4, 8, 8, 4, 2, 1, 0, 0, 0, 0],
-            ]
-        )
-        / 8
-    ).T
-    res = add_noise(y=y, dt=0.1, snr=2.0)
-    sns.heatmap(torch.cat([y, res], dim=1), center=0)
-    plt.savefig("tmp.png")

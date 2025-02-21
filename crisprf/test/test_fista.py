@@ -17,9 +17,7 @@ def test_fista():
 
     for i, (x_hat, elapsed) in enumerate(
         sparse_inverse_radon_fista(
-            **SAMPLE,
-            dt=dt,
-            freq_bounds=(0, 1 / 2 / dt),
+            SAMPLE,
             alphas=(1.0, 0.2),
             n_layers=10,
             device=AUTO_DEVICE,

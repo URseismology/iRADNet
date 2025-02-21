@@ -9,8 +9,7 @@ from crisprf.model.solver import sparse_inverse_radon_fista
 from crisprf.util.dataloading import SRTDataset
 from crisprf.util.evaluation import eval_metrics
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-dt = 0.02
+DEVICE = torch.device("cuda")
 
 
 def grid_search():
@@ -29,9 +28,7 @@ def inference(
 
     for i, sample in enumerate(dataset):
         for x_hat, elapsed in sparse_inverse_radon_fista(
-            **sample,
-            dt=dt,
-            freq_bounds=(0, 1 / 2 / dt),
+            sample,
             alphas=(lambd, mu),
             n_layers=10,
             device=DEVICE,
