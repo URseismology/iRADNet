@@ -2,6 +2,16 @@ import torch
 import torch.nn as nn
 
 
+from ..util.bridging import RFDataShape
+from ..util.constants import AUTO_DEVICE
+
+
+def _init_param_list(n: int, alpha: float, device: torch.device):
+    return nn.ParameterList(
+        [nn.Parameter(torch.ones(1, device=device) * alpha) for _ in range(n)]
+    )
+
+
 class LISTA_base(nn.Module):
     r"""
     Abstract class for LISTA-based models.
@@ -20,67 +30,61 @@ class LISTA_base(nn.Module):
 
     Parameters
     ----------
-    n_iter : int
-        number of iterations, i.e. K
-    D : torch.Tensor
-        dictionary matrix. If unknown, set `D=None` and provide `N, M`
-    N : int, optional
-        original signal dimension, by default None
-    M : int, optional
-        sparse code dimension, by default None
+    radon3d : torch.Tensor
+        radon 3d matrix. (nfft, np, nq)
+    n_layers : int
+        number of layers or iterations (i.e., K)
+    shapes : RFDataShape
+        shape information wrapper
     shared_theta : bool, optional
         whether thetas(0, ..., K-1) are same, by default False
     shared_weight : bool, optional
-        whether weights(0, ..., K-1) are same, by default False
+        whether weights(0, ..., K-1) are same, by default True
+    freq_index_bounds : tuple[int, int], optional
+        frequency index bounds, by default None
+    alpha : float, optional
+        initializer for gamma, by default 0.9
+    device : torch.device, optional
+        device, by default AUTO_DEVICE
     """
 
     def __init__(
         self,
-        n_iter: int,
-        D: torch.Tensor | None,
-        N: int = None,
-        M: int = None,
-        shared_theta: bool = True,
+        radon3d: torch.Tensor,
+        n_layers: int,
+        shapes: RFDataShape,
+        shared_theta: bool = False,
         shared_weight: bool = True,
+        freq_index_bounds: tuple[int, int] = None,
+        alpha: float = 0.9,
+        device: torch.device = AUTO_DEVICE,
     ) -> None:
         super().__init__()
-        self.n_iter = n_iter
+        assert radon3d is not None
+        self.shapes = shapes
+        if freq_index_bounds is not None:
+            self.ilow, self.ihigh = freq_index_bounds
+        else:
+            self.ilow, self.ihigh = 1, shapes.nfft // 2
 
-        # either D or (M, N) should be provided,
-        # mutually exclusive, hence XOR
-        assert (D is not None) ^ (M is not None and N is not None)
-        self.D = None if D is None else D.requires_grad_(False)
-        # (N, M) matrix
-        self.D_SHAPE = (N, M) if D is None else D.shape
+        self.radon3d = radon3d
+        self.n_layers = n_layers
 
         self.shared_theta = shared_theta
         self.shared_weight = shared_weight
 
-    @property
-    def N(self) -> int:
-        """
-        original signal dimension :math:`y ∈ R^N`
+        # set up thresholding parameters
+        n_theta = 1 if shared_theta else n_layers
+        self.gammas = _init_param_list(n_theta, alpha, device)
+        self.etas = _init_param_list(n_theta, alpha, device)
 
-        Returns
-        -------
-        int
-            dimension of y
-        """
-        return self.D_SHAPE[0]
+    def get_gamma(self, k: int) -> torch.Tensor:
+        return self.gammas[0 if self.shared_theta else k]
 
-    @property
-    def M(self) -> int:
-        """
-        sparse code dimension :math:`x ∈ R^M`
+    def get_eta(self, k: int) -> torch.Tensor:
+        return self.etas[0 if self.shared_theta else k]
 
-        Returns
-        -------
-        int
-            dimension of x
-        """
-        return self.D_SHAPE[1]
-
-    def forward(self):
+    def forward(self, x0: torch.Tensor, y_freq: torch.Tensor):
         raise NotImplementedError(
             "LISTA_base is an abstract class. Use one of its subclasses."
         )

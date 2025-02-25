@@ -3,8 +3,7 @@ import torch
 import torch.nn.functional as F
 
 
-def shrink(x: torch.Tensor,
-           theta: torch.Tensor) -> torch.Tensor:
+def shrink_soft(x: torch.Tensor, theta: torch.Tensor) -> torch.Tensor:
     """
     Soft shrinkage function, θ is auto-ReLU-ed.
 
@@ -25,8 +24,7 @@ def shrink(x: torch.Tensor,
     return x.sign() * F.relu(x.abs() - F.relu(theta))
 
 
-def shrink_free(x: torch.Tensor,
-                theta: torch.Tensor) -> torch.Tensor:
+def shrink_free(x: torch.Tensor, theta: torch.Tensor) -> torch.Tensor:
     """
     Soft shrinkage function.
 
@@ -47,10 +45,9 @@ def shrink_free(x: torch.Tensor,
     return x.sign() * F.relu(x.abs() - theta)
 
 
-def shrink_ss(data: torch.Tensor,
-              theta: torch.Tensor,
-              q: int,
-              return_index: bool = False):
+def shrink_ss(
+    data: torch.Tensor, theta: torch.Tensor, q: int, return_index: bool = False
+):
     """special shrink that does not apply soft shrinkage to entries of top q% magnitudes.
 
     Args:
@@ -69,7 +66,7 @@ def shrink_ss(data: torch.Tensor,
     _id = _id.detach()
     _cid = 1.0 - _id  # complementary index
 
-    output = (_id * data + shrink(_cid * data, theta))
+    output = _id * data + shrink_soft(_cid * data, theta)
     if return_index:
         return output, _cid
     else:
@@ -77,12 +74,12 @@ def shrink_ss(data: torch.Tensor,
 
 
 # %%
-if __name__ == '__main__':
+if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     x = torch.arange(-10, 10, 0.1)
     theta = torch.tensor(-1.0)
-    y = shrink(x, theta)
+    y = shrink_soft(x, theta)
 
     plt.plot(x, y)
     plt.show()

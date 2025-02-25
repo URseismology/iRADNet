@@ -118,6 +118,8 @@ def plot_sample(
             plot_x(data=kwargs[k], ax=ax, **kwargs)
         else:
             plot_y(data=kwargs[k], ax=ax, **kwargs)
+        # set key as ax title, e.g. "y_hat"
+        ax.set_title(k)
 
     # axes[-1].locator_params(axis="x", nbins=10)
     axes[-1].set_xlabel("Time (s)")

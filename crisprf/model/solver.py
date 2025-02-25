@@ -24,11 +24,11 @@ def get_x0(
     x0_freq = torch.zeros((nfft, nq), device=y_freq.device, dtype=FREQ_DTYPE)
     for ifreq in range(ilow, ihigh):
         # (np, nq)
-        L = radon3d[ifreq, :, :]
+        radon2d = radon3d[ifreq, :, :]
         # (np, nq).T @ (np, ) -> (nq, )
-        B = L.T.conj() @ y_freq[ifreq, :].conj()
+        B = radon2d.T.conj() @ y_freq[ifreq, :].conj()
         # (np, nq).T @ (np, np) @ (np, nq) -> (nq, nq)
-        A = L.T.conj() @ L
+        A = radon2d.T.conj() @ radon2d
 
         # (A + alpha * I) x = B, solve for x (nq, )
         x_i: torch.Tensor = torch.linalg.solve(

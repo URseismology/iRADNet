@@ -29,20 +29,22 @@ def fista(
         x = x0
         z = x
         q_t = torch.ones(1, device=x.device)
-        step_size = alpha / cal_lipschitz(L=radon3d, nt=nt, ilow=ilow, ihigh=ihigh)
+        step_size = alpha / cal_lipschitz(
+            radon3d=radon3d, nt=nt, ilow=ilow, ihigh=ihigh
+        )
 
         for _ in range(n_layers):
             # z update
             # y_hat = A(x)
             y_tilde_freq = radon3d_forward(
                 time2freq(z, nfft),
-                L=radon3d,
+                radon3d=radon3d,
                 ilow=ilow,
                 ihigh=ihigh,
             )
             # x_tilde = F^-1 L*(y_tilde_freq - y_freq)
             x_tilde_freq = radon3d_forward_adjoint(
-                y_tilde_freq - y_freq, L=radon3d, ilow=ilow, ihigh=ihigh
+                y_tilde_freq - y_freq, radon3d=radon3d, ilow=ilow, ihigh=ihigh
             )
             x_tilde = freq2time(x_tilde_freq, nt)
             # threshold

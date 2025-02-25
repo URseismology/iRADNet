@@ -1,12 +1,9 @@
 import torch
 import torch.nn as nn
 
-import matplotlib.pyplot as plt
-import seaborn as sns
-
 from .bridging import plot_sample
 
-FID_LOSS = nn.MSELoss()
+FID_LOSS = nn.MSELoss(reduction="sum")
 REG_LOSS = nn.L1Loss(reduction="sum")
 
 

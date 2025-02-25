@@ -4,96 +4,100 @@ import torch.nn as nn
 from math import sqrt
 from typing import Generator
 
+from .LISTA_base import LISTA_base
+from ..util.bridging import RFDataShape
+from ..util.constants import AUTO_DEVICE
+from ..util.shrink import shrink_soft
 from .radon3d import (
     cal_lipschitz,
     freq2time,
     radon3d_forward,
     radon3d_forward_adjoint,
-    shrink,
+    time2freq,
 )
 
 
-class SRT_LISTA_CP(nn.Module):
+class SRT_LISTA_CP(LISTA_base):
 
     def __init__(
         self,
-        L: torch.Tensor,
+        radon3d: torch.Tensor,
         n_layers: int,
-        device: torch.device = torch.device("cuda:0"),
-        **kwargs
+        shapes: RFDataShape,
+        freq_index_bounds: tuple[int, int] = None,
+        alpha: float = 0.9,
+        device: torch.device = AUTO_DEVICE,
     ):
-        super().__init__()
-        assert L is not None
-        # L: (nfft, np, nq)
-        self.nfft, self.np, self.nq = L.shape
+        super().__init__(
+            radon3d=radon3d,
+            n_layers=n_layers,
+            shapes=shapes,
+            shared_theta=False,
+            shared_weight=True,
+            freq_index_bounds=freq_index_bounds,
+            alpha=alpha,
+            device=device,
+        )
 
-        self.L = L
-        self.n_layers = n_layers
-
-        self.W1 = nn.Parameter(L.clone(), requires_grad=True)
-        self.W2 = nn.Parameter(L.clone(), requires_grad=True)
+        # \Theta = {W1, W2} \cup {gamma(k), eta(k)}^K_{k=1}
+        self.W1 = nn.Parameter(radon3d.clone()).to(device)
+        self.W2 = nn.Parameter(radon3d.clone()).to(device)
 
         # each eta/gamma for each iteration; we have `n_layers`
-        lip = cal_lipschitz(L=L, **kwargs)
-        self.gammas = nn.ParameterList(
-            [
-                nn.Parameter(torch.ones(1, device=device) * 0.9 / lip)
-                for _ in range(n_layers)
-            ]
+        self.lip = cal_lipschitz(
+            radon3d=radon3d, nt=shapes.nt, ilow=self.ilow, ihigh=self.ihigh
         )
-        self.etas = nn.ParameterList(
-            [
-                nn.Parameter(torch.ones(1, device=device) * 0.9 / lip)
-                for _ in range(n_layers)
-            ]
-        )
-
-        self.reinit_num = 0
 
     def forward(
-        self, x0: torch.Tensor, y: torch.Tensor, **kwargs
+        self, x0: torch.Tensor, y_freq: torch.Tensor
     ) -> Generator[torch.Tensor, None, None]:
         # x0: (nt, nq)
         # y: (nfft, np)
         x = x0
-        s = x
+        z = x
         q_t = 1
 
         # obtain x1 based on x0,
         # and so on x2, x3, ..., xT
-        for i in range(self.n_layers):
-            # _As (nfft, np), _AAs (nt, nq)
+        for k in range(self.n_layers):
+            # y_tilde = A(x)
             y_tilde_freq = radon3d_forward(
-                x=torch.fft.fft(torch.real(s), self.nfft, dim=0), L=self.W1, **kwargs
+                x_freq=time2freq(z, self.shapes.nfft),
+                radon3d=self.W1,
+                ilow=self.ilow,
+                ihigh=self.ihigh,
             )
+            # x_tilde = F^-1 L*(y_tilde - y_freq)
             x_tilde_freq = radon3d_forward_adjoint(
-                y_tilde_freq - y, L=self.W2, **kwargs
+                y_tilde_freq - y_freq, radon3d=self.W2, ilow=self.ilow, ihigh=self.ihigh
             )
-            x_tilde = freq2time(x_tilde_freq, nt=kwargs["nt"])
+            x_tilde = freq2time(x_tilde_freq, nt=self.shapes.nt)
 
             # shrinking
             x_prev = x
-            x = shrink(s - self.gammas[i] * x_tilde, self.etas[i])
+            x = shrink_soft(
+                z - self.get_gamma(k) * x_tilde / self.lip, self.get_eta(k) / self.lip
+            )
 
+            # q update
             q_t1 = (1 + sqrt(1 + 4 * q_t**2)) / 2
-            s = x + (q_t - 1) / q_t1 * (x - x_prev)
+            # z update
+            z = x + (q_t - 1) / q_t1 * (x - x_prev)
             q_t = q_t1
 
             # next do update on _AAx to get x
             yield x
 
-    pass
-
 
 def lista(
     x0: torch.Tensor,
     y_freq: torch.Tensor,
-    L: torch.Tensor,
-    nt: int,
+    radon3d: torch.Tensor,
+    shapes: RFDataShape,
     ilow: int,
     ihigh: int,
     n_layers: int,
-    lambd: float,
+    lambd: None = None,
 ):
     """_summary_
 
@@ -102,25 +106,32 @@ def lista(
     x0 : torch.Tensor
         inital sparse code guess
     y_freq : torch.Tensor
-        _description_
-    L : torch.Tensor
-        _description_
-    nt : int
-        _description_
+        signal in fourier domain
+    radon3d : torch.Tensor
+        radon3d tensor (nfft, np, nq)
+    shapes : RFDataShape
+        shape information, e.g. nfft, nt
     ilow : int
         freq low index
     ihigh : int
         freq high index
     n_layers : int
         max iteration of ISTA
-    lambd : float
-        _description_
+    lambd : None
+        FISTA argument, only to retain same parameters
 
     Yields
     ------
     torch.Tensor
         :code:`x1` :code:`xT` sparse code after each iteration of ISTA
     """
-    lista_model = SRT_LISTA_CP(L=L, n_layers=n_layers, nt=nt, ilow=ilow, ihigh=ihigh)
+    assert lambd is None
 
-    return lista_model(x0, y_freq, nt=nt, ilow=ilow, ihigh=ihigh)
+    lista_model = SRT_LISTA_CP(
+        radon3d=radon3d,
+        n_layers=n_layers,
+        shapes=shapes,
+        freq_index_bounds=(ilow, ihigh),
+    )
+
+    return lista_model(x0, y_freq)
