@@ -18,11 +18,11 @@ def init_radon3d_mat(
     Parameters
     ----------
     q : torch.Tensor
-        q range (nq,)
+        q range (nQ,)
     rayP : torch.Tensor
-        ray parameters (np,)
+        ray parameters (nP,)
     shapes : RFDataShape
-        A shape recording object, containing nfft, np, nq, dt
+        A shape recording object, containing nFFT, nP, nQ, dt
     N : int, optional
         power of rayP, by default 2
     device : torch.device, optional
@@ -31,17 +31,17 @@ def init_radon3d_mat(
     Returns
     -------
     torch.Tensor
-        3D Radon transform matrix (nfft, np, nq)
+        3D Radon transform matrix (nFFT, nP, nQ)
     """
-    nfft, np, nq = shapes.nfft, shapes.np, shapes.nq
+    nFFT, nP, nQ = shapes.nFFT, shapes.nP, shapes.nQ
     dt = shapes.dt
 
     # init radon transform matrix
-    radon3d = torch.zeros((nfft, np, nq), device=device, dtype=FREQ_DTYPE)
+    radon3d = torch.zeros((nFFT, nP, nQ), device=device, dtype=FREQ_DTYPE)
     ifreq_f = (
-        2.0 * torch.pi * torch.arange(nfft, device=device, dtype=TIME_DTYPE) / nfft / dt
+        2.0 * torch.pi * torch.arange(nFFT, device=device, dtype=TIME_DTYPE) / nFFT / dt
     )
-    # (nfft) @ (np) @ (nq) = (nfft, np, nq)
+    # (nFFT) @ (nP) @ (nQ) = (nFFT, nP, nQ)
     radon3d[:, :, :] = torch.exp(
         1j
         * torch.einsum(
@@ -59,9 +59,9 @@ def radon3d_forward(
     Parameters
     ----------
     x_freq : torch.Tensor
-        code in freq domain (nfft, nq)
+        code in freq domain (nFFT, nQ)
     radon3d : torch.Tensor
-        3D matrix (nfft, np, nq)
+        3D matrix (nFFT, nP, nQ)
     ilow : int
         low frequency index
     ihigh : int
@@ -72,19 +72,19 @@ def radon3d_forward(
     torch.Tensor
         :math:`\\tilde{y}_f = L(x_f)` in frequency domain
     """
-    nfft, np, nq = radon3d.shape
-    assert x_freq.shape == (nfft, nq)
-    y_freq = torch.zeros((nfft, np), device=radon3d.device, dtype=FREQ_DTYPE)
+    nFFT, nP, nQ = radon3d.shape
+    assert x_freq.shape == (nFFT, nQ)
+    y_freq = torch.zeros((nFFT, nP), device=radon3d.device, dtype=FREQ_DTYPE)
 
-    # (slice, np, nq) @ (slice, nq, ) = (slice, np, )
+    # (slice, nP, nQ) @ (slice, nQ, ) = (slice, nP, )
     y_slice = torch.einsum(
         "bpq,bq->bp", radon3d[ilow:ihigh, :, :], x_freq[ilow:ihigh, :].conj()
     )
 
     # symmetrically fill the rest of the frequency domain, center -> 0
     y_freq[ilow:ihigh, :] = y_slice.conj_physical()
-    y_freq[nfft + 1 - ihigh : nfft + 1 - ilow, :] = y_slice.flip(0)
-    y_freq[nfft // 2, :] = 0.0
+    y_freq[nFFT + 1 - ihigh : nFFT + 1 - ilow, :] = y_slice.flip(0)
+    y_freq[nFFT // 2, :] = 0.0
 
     return y_freq
 
@@ -97,9 +97,9 @@ def radon3d_forward_adjoint(
     Parameters
     ----------
     y_freq : torch.Tensor
-        image in freq domain (nfft, np)
+        image in freq domain (nFFT, nP)
     radon3d : torch.Tensor
-        3D matrix (nfft, np, nq)
+        3D matrix (nFFT, nP, nQ)
     ilow : int
         low frequency index
     ihigh : int
@@ -110,48 +110,48 @@ def radon3d_forward_adjoint(
     torch.Tensor
         :math:`\tilde{x}_f = L*(y_f)` in frequency domain
     """
-    nfft, np, nq = radon3d.shape
-    assert y_freq.shape == (nfft, np)
-    x_freq = torch.zeros((nfft, nq), device=radon3d.device, dtype=FREQ_DTYPE)
+    nFFT, nP, nQ = radon3d.shape
+    assert y_freq.shape == (nFFT, nP)
+    x_freq = torch.zeros((nFFT, nQ), device=radon3d.device, dtype=FREQ_DTYPE)
 
-    # (slice, np, nq) @ (slice, np, ) = (slice, nq, )
+    # (slice, nP, nQ) @ (slice, nP, ) = (slice, nQ, )
     x_slice = torch.einsum(
         "bpq,bp->bq", radon3d[ilow:ihigh, :, :].conj(), y_freq[ilow:ihigh, :].conj()
     )
 
     # symmetrically fill the rest of the frequency domain
     x_freq[ilow:ihigh, :] = x_slice.conj_physical()
-    x_freq[nfft + 1 - ihigh : nfft + 1 - ilow, :] = x_slice.flip(0)
-    x_freq[nfft // 2, :] = 0.0
+    x_freq[nFFT + 1 - ihigh : nFFT + 1 - ilow, :] = x_slice.flip(0)
+    x_freq[nFFT // 2, :] = 0.0
 
     return x_freq
 
 
-def freq2time(inp_freq: torch.Tensor, nt: int) -> torch.Tensor:
-    return torch.real(fft.ifft(inp_freq, dim=0)[:nt, :])
+def freq2time(inp_freq: torch.Tensor, nT: int) -> torch.Tensor:
+    return torch.real(fft.ifft(inp_freq, dim=0)[:nT, :])
 
 
-def time2freq(inp: torch.Tensor, nfft: int) -> torch.Tensor:
-    return fft.fft(torch.real(inp), n=nfft, dim=0)
+def time2freq(inp: torch.Tensor, nFFT: int) -> torch.Tensor:
+    return fft.fft(torch.real(inp), n=nFFT, dim=0)
 
 
-def cal_lipschitz(radon3d: torch.Tensor, nt: int, ilow: int, ihigh: int):
+def cal_lipschitz(radon3d: torch.Tensor, nT: int, ilow: int, ihigh: int):
     # estimate the max eigenvalue of A* A
-    nfft, np, nq = radon3d.shape
-    x = torch.rand((nt, nq), device=radon3d.device, dtype=TIME_DTYPE)
-    x_freq = torch.fft.fft(x, nfft, dim=0)
+    nFFT, nP, nQ = radon3d.shape
+    x = torch.rand((nT, nQ), device=radon3d.device, dtype=TIME_DTYPE)
+    x_freq = torch.fft.fft(x, nFFT, dim=0)
 
     for _ in range(2):
         y_freq = radon3d_forward(x_freq, radon3d=radon3d, ilow=ilow, ihigh=ihigh)
         x_freq = radon3d_forward_adjoint(
             y_freq, radon3d=radon3d, ilow=ilow, ihigh=ihigh
         )
-        x = freq2time(x_freq, nt)
+        x = freq2time(x_freq, nT)
         x = x / torch.linalg.norm(x, ord=2)
-        x_freq = torch.fft.fft(x, nfft, dim=0)
+        x_freq = torch.fft.fft(x, nFFT, dim=0)
 
     y_freq = radon3d_forward(x_freq, radon3d=radon3d, ilow=ilow, ihigh=ihigh)
     x1_freq = radon3d_forward_adjoint(y_freq, radon3d=radon3d, ilow=ilow, ihigh=ihigh)
-    x1 = freq2time(x1_freq, nt)
+    x1 = freq2time(x1_freq, nT)
     lipschitz = torch.sum(x * x1) / torch.sum(x**2)
     return lipschitz.item()

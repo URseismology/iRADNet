@@ -37,16 +37,16 @@ class SRT_AdaLISTA(LISTA_base):
         )
 
         # \Theta = {W1, W2, gamma_k, theta_k}
-        self.W1 = nn.Parameter(torch.eye(self.shapes.np)).to(device)
-        self.W2 = nn.Parameter(torch.eye(self.shapes.nq)).to(device)
+        self.W1 = nn.Parameter(torch.eye(self.shapes.nP)).to(device)
+        self.W2 = nn.Parameter(torch.eye(self.shapes.nQ)).to(device)
 
         self.lip = cal_lipschitz(
-            radon3d=radon3d, nt=shapes.nt, ilow=self.ilow, ihigh=self.ihigh
+            radon3d=radon3d, nT=shapes.nT, ilow=self.ilow, ihigh=self.ihigh
         )
 
     def forward(self, x0: torch.Tensor, y_freq: torch.Tensor):
-        # x0: (nt, nq)
-        # y: (nfft, np)
+        # x0: (nT, nQ)
+        # y: (nFFT, nP)
         x = torch.zeros_like(x0)
 
         for k in range(self.n_layers):
@@ -54,7 +54,7 @@ class SRT_AdaLISTA(LISTA_base):
             L2 = torch.einsum("bpq,qq->bpq", self.radon3d, self.W2)
 
             y_tilde_freq = radon3d_forward(
-                x_freq=time2freq(x, self.shapes.nfft),
+                x_freq=time2freq(x, self.shapes.nFFT),
                 radon3d=L1,
                 ilow=self.ilow,
                 ihigh=self.ihigh,
@@ -62,7 +62,7 @@ class SRT_AdaLISTA(LISTA_base):
             x_tilde_freq = radon3d_forward_adjoint(
                 y_tilde_freq - y_freq, radon3d=L2, ilow=self.ilow, ihigh=self.ihigh
             )
-            x_tilde = freq2time(x_tilde_freq, nt=self.shapes.nt)
+            x_tilde = freq2time(x_tilde_freq, nT=self.shapes.nT)
             x = shrink_soft(
                 x - self.get_gamma(k) * x_tilde / self.lip, self.get_eta(k) / self.lip
             )

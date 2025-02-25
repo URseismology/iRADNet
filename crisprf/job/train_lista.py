@@ -35,8 +35,8 @@ def train_lista(
             x: torch.Tensor = batch["x"].squeeze(0).to(device)
             y: torch.Tensor = batch["y"].squeeze(0).to(device)
 
-            # (nt, np) -> (nfft, np)
-            y_freq = time2freq(y, shapes.nfft)
+            # (nT, nP) -> (nFFT, nP)
+            y_freq = time2freq(y, shapes.nFFT)
 
             for x_hat in model(x, y_freq):
                 pass

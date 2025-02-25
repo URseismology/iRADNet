@@ -24,6 +24,8 @@ class SRT_LISTA_CP(LISTA_base):
         radon3d: torch.Tensor,
         n_layers: int,
         shapes: RFDataShape,
+        shared_theta: bool = False,
+        shared_weight: bool = True,
         freq_index_bounds: tuple[int, int] = None,
         alpha: float = 0.9,
         device: torch.device = AUTO_DEVICE,
@@ -45,14 +47,14 @@ class SRT_LISTA_CP(LISTA_base):
 
         # each eta/gamma for each iteration; we have `n_layers`
         self.lip = cal_lipschitz(
-            radon3d=radon3d, nt=shapes.nt, ilow=self.ilow, ihigh=self.ihigh
+            radon3d=radon3d, nT=shapes.nT, ilow=self.ilow, ihigh=self.ihigh
         )
 
     def forward(
         self, x0: torch.Tensor, y_freq: torch.Tensor
     ) -> Generator[torch.Tensor, None, None]:
-        # x0: (nt, nq)
-        # y: (nfft, np)
+        # x0: (nT, nQ)
+        # y: (nFFT, nP)
         x = x0
         z = x
         q_t = 1
@@ -62,7 +64,7 @@ class SRT_LISTA_CP(LISTA_base):
         for k in range(self.n_layers):
             # y_tilde = A(x)
             y_tilde_freq = radon3d_forward(
-                x_freq=time2freq(z, self.shapes.nfft),
+                x_freq=time2freq(z, self.shapes.nFFT),
                 radon3d=self.W1,
                 ilow=self.ilow,
                 ihigh=self.ihigh,
@@ -71,7 +73,7 @@ class SRT_LISTA_CP(LISTA_base):
             x_tilde_freq = radon3d_forward_adjoint(
                 y_tilde_freq - y_freq, radon3d=self.W2, ilow=self.ilow, ihigh=self.ihigh
             )
-            x_tilde = freq2time(x_tilde_freq, nt=self.shapes.nt)
+            x_tilde = freq2time(x_tilde_freq, nT=self.shapes.nT)
 
             # shrinking
             x_prev = x
@@ -108,9 +110,9 @@ def lista(
     y_freq : torch.Tensor
         signal in fourier domain
     radon3d : torch.Tensor
-        radon3d tensor (nfft, np, nq)
+        radon3d tensor (nFFT, nP, nQ)
     shapes : RFDataShape
-        shape information, e.g. nfft, nt
+        shape information, e.g. nFFT, nT
     ilow : int
         freq low index
     ihigh : int

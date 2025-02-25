@@ -22,22 +22,19 @@ def fista(
     lambd: float,
     alpha: float = 0.9,
 ):
-    nfft = shapes.nfft
-    nt = shapes.nt
-
     with torch.no_grad():
         x = x0
         z = x
         q_t = torch.ones(1, device=x.device)
         step_size = alpha / cal_lipschitz(
-            radon3d=radon3d, nt=nt, ilow=ilow, ihigh=ihigh
+            radon3d=radon3d, nT=shapes.nT, ilow=ilow, ihigh=ihigh
         )
 
         for _ in range(n_layers):
             # z update
             # y_hat = A(x)
             y_tilde_freq = radon3d_forward(
-                time2freq(z, nfft),
+                time2freq(z, shapes.nFFT),
                 radon3d=radon3d,
                 ilow=ilow,
                 ihigh=ihigh,
@@ -46,7 +43,7 @@ def fista(
             x_tilde_freq = radon3d_forward_adjoint(
                 y_tilde_freq - y_freq, radon3d=radon3d, ilow=ilow, ihigh=ihigh
             )
-            x_tilde = freq2time(x_tilde_freq, nt)
+            x_tilde = freq2time(x_tilde_freq, shapes.nT)
             # threshold
             x_prev = x
             x = F.softshrink(z - (step_size * x_tilde), step_size * lambd)

@@ -31,7 +31,7 @@ class LISTA_base(nn.Module):
     Parameters
     ----------
     radon3d : torch.Tensor
-        radon 3d matrix. (nfft, np, nq)
+        radon 3d matrix. (nFFT, nP, nQ)
     n_layers : int
         number of layers or iterations (i.e., K)
     shapes : RFDataShape
@@ -65,7 +65,7 @@ class LISTA_base(nn.Module):
         if freq_index_bounds is not None:
             self.ilow, self.ihigh = freq_index_bounds
         else:
-            self.ilow, self.ihigh = 1, shapes.nfft // 2
+            self.ilow, self.ihigh = 1, shapes.nFFT // 2
 
         self.radon3d = radon3d
         self.n_layers = n_layers

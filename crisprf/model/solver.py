@@ -17,30 +17,30 @@ def get_x0(
     mu: float,
     shapes: RFDataShape,
 ) -> torch.Tensor:
-    nfft = shapes.nfft
-    nq = shapes.nq
-    nt = shapes.nt
+    nFFT = shapes.nFFT
+    nQ = shapes.nQ
+    nT = shapes.nT
 
-    x0_freq = torch.zeros((nfft, nq), device=y_freq.device, dtype=FREQ_DTYPE)
+    x0_freq = torch.zeros((nFFT, nQ), device=y_freq.device, dtype=FREQ_DTYPE)
     for ifreq in range(ilow, ihigh):
-        # (np, nq)
+        # (nP, nQ)
         radon2d = radon3d[ifreq, :, :]
-        # (np, nq).T @ (np, ) -> (nq, )
+        # (nP, nQ).T @ (nP, ) -> (nQ, )
         B = radon2d.T.conj() @ y_freq[ifreq, :].conj()
-        # (np, nq).T @ (np, np) @ (np, nq) -> (nq, nq)
+        # (nP, nQ).T @ (nP, nP) @ (nP, nQ) -> (nQ, nQ)
         A = radon2d.T.conj() @ radon2d
 
-        # (A + alpha * I) x = B, solve for x (nq, )
+        # (A + alpha * I) x = B, solve for x (nQ, )
         x_i: torch.Tensor = torch.linalg.solve(
-            A + mu * torch.eye(nq, dtype=FREQ_DTYPE, device=y_freq.device), B
+            A + mu * torch.eye(nQ, dtype=FREQ_DTYPE, device=y_freq.device), B
         )
 
         x0_freq[ifreq, :] = x_i.conj()
-        x0_freq[nfft - ifreq, :] = x_i
+        x0_freq[nFFT - ifreq, :] = x_i
 
-    x0_freq[nfft // 2, :] = 0
-    # (nfft, nq) -> (nt, np)
-    return torch.real(torch.fft.ifft(x0_freq, dim=0)[:nt, :])
+    x0_freq[nFFT // 2, :] = 0
+    # (nFFT, nQ) -> (nT, nP)
+    return torch.real(torch.fft.ifft(x0_freq, dim=0)[:nT, :])
 
 
 def sparse_inverse_radon_fista(
@@ -75,11 +75,11 @@ def sparse_inverse_radon_fista(
         reconstructed radon image
     """
     shapes = RFDataShape.from_sample(**sample)
-    nfft = shapes.nfft
+    nFFT = shapes.nFFT
     dt = shapes.dt
 
     # init signal in frequency domain
-    y_freq: torch.Tensor = torch.fft.fft(sample["y"], nfft, dim=0)
+    y_freq: torch.Tensor = torch.fft.fft(sample["y"], nFFT, dim=0)
 
     # init radon transform matrix
     radon3d = init_radon3d_mat(
@@ -87,13 +87,13 @@ def sparse_inverse_radon_fista(
     )
 
     # determine a [ilow, ihigh) frequency range, bounded by
-    # [1, nfft // 2) <-> (nfft // 2, nfft - 1] such that it's symmetric
+    # [1, nFFT // 2) <-> (nFFT // 2, nFFT - 1] such that it's symmetric
     # e.g. [1, 32) <-> (32, 63], so ilow = 1, ihigh = 32
     if freq_bounds is not None:
-        ilow = max(int(freq_bounds[0] * dt * nfft), 1)
-        ihigh = min(int(freq_bounds[1] * dt * nfft), nfft // 2)
+        ilow = max(int(freq_bounds[0] * dt * nFFT), 1)
+        ihigh = min(int(freq_bounds[1] * dt * nFFT), nFFT // 2)
     else:
-        ilow, ihigh = 1, nfft // 2
+        ilow, ihigh = 1, nFFT // 2
 
     x0 = get_x0(
         y_freq=y_freq,
