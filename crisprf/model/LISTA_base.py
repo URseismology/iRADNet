@@ -84,11 +84,37 @@ class LISTA_base(nn.Module):
     def get_eta(self, k: int) -> torch.Tensor:
         return self.etas[0 if self.shared_theta else k]
 
+    def save_checkpoint(self, path: str = None):
+        path = path or f"cache/{self.__class__.__name__}.pt"
+        torch.save(
+            {
+                "radon3d": self.radon3d,
+                "n_layers": self.n_layers,
+                "state_dict": self.state_dict(),
+                "shapes": self.shapes,
+                "shared_theta": self.shared_theta,
+                "shared_weight": self.shared_weight,
+                "freq_index_bounds": (self.ilow, self.ihigh),
+            },
+            path,
+        )
+
+    @staticmethod
+    def load_checkpoint(model_class: "LISTA_base", path: str = None) -> "LISTA_base":
+        path = path or f"cache/{model_class.__name__}.pt"
+        checkpoint = torch.load(path)
+        model: LISTA_base = model_class(
+            radon3d=checkpoint["radon3d"],
+            n_layers=checkpoint["n_layers"],
+            shapes=checkpoint["shapes"],
+            shared_theta=checkpoint["shared_theta"],
+            shared_weight=checkpoint["shared_weight"],
+            freq_index_bounds=checkpoint["freq_index_bounds"],
+        )
+        model.load_state_dict(checkpoint["state_dict"])
+        return model
+
     def forward(self, x0: torch.Tensor, y_freq: torch.Tensor):
         raise NotImplementedError(
             "LISTA_base is an abstract class. Use one of its subclasses."
         )
-
-
-if __name__ == "__main__":
-    model = LISTA_base(1, torch.randn(20, 10))
