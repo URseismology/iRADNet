@@ -39,11 +39,11 @@ class TestRadon3d:
         self.qs = torch.tensor(radon_matlab_trace["qs"]).squeeze()
         self.rayP = torch.tensor(radon_matlab_trace["rayP"]).squeeze()
         self.shapes = RFDataShape(
-            nt=radon_matlab_trace["nt"].item(),
-            nfft=radon_matlab_trace["nfft"].item(),
-            dt=radon_matlab_trace["dt"].item(),
-            np=self.rayP.numel(),
-            nq=self.qs.numel(),
+            nT=radon_matlab_trace["nt"].item(),
+            nFFT=radon_matlab_trace["nfft"].item(),
+            dT=radon_matlab_trace["dt"].item(),
+            nP=self.rayP.numel(),
+            nQ=self.qs.numel(),
         )
 
     def test_dtype(self):
@@ -64,10 +64,10 @@ class TestRadon3d:
 
     def test_fft(self):
         # test fft x0 to freq domain
-        assert torch.allclose(self.x0_freq, time2freq(self.x0, self.shapes.nfft))
+        assert torch.allclose(self.x0_freq, time2freq(self.x0, self.shapes.nFFT))
 
     def test_radon3d_forward(self):
-        nffthalf = self.shapes.nfft // 2
+        nffthalf = self.shapes.nFFT // 2
         _y1_freq = radon3d_forward(self.x0_freq, self.radon3d, 1, nffthalf)
         assert _y1_freq.dtype == FREQ_DTYPE
 
@@ -83,16 +83,16 @@ class TestRadon3d:
 
     def test_radon3d_adjoint(self):
         _x1_freq = radon3d_forward_adjoint(
-            self.y1_freq, self.radon3d, 1, self.shapes.nfft // 2
+            self.y1_freq, self.radon3d, 1, self.shapes.nFFT // 2
         )
         assert _x1_freq.dtype == FREQ_DTYPE
 
-        _x1 = freq2time(_x1_freq, self.shapes.nt)
+        _x1 = freq2time(_x1_freq, self.shapes.nT)
         assert _x1.shape == self.x1.shape
         assert torch.allclose(_x1, self.x1)
 
     def test_lipschitz(self):
-        _lip = cal_lipschitz(self.radon3d, self.shapes.nt, 1, self.shapes.nfft // 2)
+        _lip = cal_lipschitz(self.radon3d, self.shapes.nT, 1, self.shapes.nFFT // 2)
         # some randomness in init random x, so be generous
         assert np.allclose(_lip, self.lip, rtol=1e-3)
 

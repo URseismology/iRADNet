@@ -9,7 +9,7 @@ from crisprf.util.constants import AUTO_DEVICE
 from crisprf.util.evaluation import eval_metrics
 
 SAMPLE = retrieve_single_xy(device=AUTO_DEVICE)
-dt = 0.02
+dT = 0.02
 
 
 def test_fista():

@@ -6,14 +6,14 @@ import torchaudio
 
 def gen_noise(
     y: torch.Tensor,
-    dt: float,
+    dT: float,
     snr: float = 2.0,
     uniform: bool = True,
     lowcut: float = 0.1,
     highcut: float = 0.5,
 ) -> torch.Tensor:
-    # y should be shape (nt, np)
-    # and y1d_norm norm over nt, giving (np,)
+    # y should be shape (nT, nP)
+    # and y1d_norm norm over nT, giving (nP,)
     y1d_norm = torch.linalg.vector_norm(y, ord=2, dim=0)
 
     # init rand matrix, uniform or normal with mean 0; 0.5 is fine
@@ -22,7 +22,7 @@ def gen_noise(
     noise = noise * y1d_norm / torch.linalg.vector_norm(noise, ord=2, dim=0) / snr
 
     # filter with butterworth bandpass
-    sos = butter(2, (lowcut, highcut), btype="band", output="sos", fs=1 / dt)
+    sos = butter(2, (lowcut, highcut), btype="band", output="sos", fs=1 / dT)
     # apply on time domain so axis=0
     noise_filt = torch.tensor(
         sosfiltfilt(sos, noise.cpu(), axis=0).copy(), device=y.device
@@ -38,13 +38,13 @@ def gen_noise(
     return noise_filt
 
 
-def butter_bandpass_filter_torch(y: torch.Tensor, dt: float):
+def butter_bandpass_filter_torch(y: torch.Tensor, dT: float):
     # Convert input to tensor and ensure correct shape
     y_tensor = torch.as_tensor(y, dtype=torch.float32)
     if y_tensor.dim() == 1:
         y_tensor = y_tensor.unsqueeze(0)  # Add batch dimension
 
-    fs = 1.0 / dt  # Calculate sampling frequency
+    fs = 1.0 / dT  # Calculate sampling frequency
 
     # Forward filtering: highpass then lowpass (2nd-order Butterworth)
     y_filt = torchaudio.functional.highpass_biquad(y_tensor, fs, 0.1)
@@ -64,5 +64,5 @@ def butter_bandpass_filter_torch(y: torch.Tensor, dt: float):
 
 
 # Example usage:
-# Assuming y is your input signal and dt is the sampling interval
-# y_filt = butter_bandpass_filter_torch(y, dt)
+# Assuming y is your input signal and dT is the sampling interval
+# y_filt = butter_bandpass_filter_torch(y, dT)

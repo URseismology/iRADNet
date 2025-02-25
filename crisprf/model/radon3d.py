@@ -22,7 +22,7 @@ def init_radon3d_mat(
     rayP : torch.Tensor
         ray parameters (nP,)
     shapes : RFDataShape
-        A shape recording object, containing nFFT, nP, nQ, dt
+        A shape recording object, containing nFFT, nP, nQ, dT
     N : int, optional
         power of rayP, by default 2
     device : torch.device, optional
@@ -34,12 +34,12 @@ def init_radon3d_mat(
         3D Radon transform matrix (nFFT, nP, nQ)
     """
     nFFT, nP, nQ = shapes.nFFT, shapes.nP, shapes.nQ
-    dt = shapes.dt
+    dT = shapes.dT
 
     # init radon transform matrix
     radon3d = torch.zeros((nFFT, nP, nQ), device=device, dtype=FREQ_DTYPE)
     ifreq_f = (
-        2.0 * torch.pi * torch.arange(nFFT, device=device, dtype=TIME_DTYPE) / nFFT / dt
+        2.0 * torch.pi * torch.arange(nFFT, device=device, dtype=TIME_DTYPE) / nFFT / dT
     )
     # (nFFT) @ (nP) @ (nQ) = (nFFT, nP, nQ)
     radon3d[:, :, :] = torch.exp(

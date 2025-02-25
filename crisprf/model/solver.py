@@ -76,7 +76,7 @@ def sparse_inverse_radon_fista(
     """
     shapes = RFDataShape.from_sample(**sample)
     nFFT = shapes.nFFT
-    dt = shapes.dt
+    dT = shapes.dT
 
     # init signal in frequency domain
     y_freq: torch.Tensor = torch.fft.fft(sample["y"], nFFT, dim=0)
@@ -90,8 +90,8 @@ def sparse_inverse_radon_fista(
     # [1, nFFT // 2) <-> (nFFT // 2, nFFT - 1] such that it's symmetric
     # e.g. [1, 32) <-> (32, 63], so ilow = 1, ihigh = 32
     if freq_bounds is not None:
-        ilow = max(int(freq_bounds[0] * dt * nFFT), 1)
-        ihigh = min(int(freq_bounds[1] * dt * nFFT), nFFT // 2)
+        ilow = max(int(freq_bounds[0] * dT * nFFT), 1)
+        ihigh = min(int(freq_bounds[1] * dT * nFFT), nFFT // 2)
     else:
         ilow, ihigh = 1, nFFT // 2
 

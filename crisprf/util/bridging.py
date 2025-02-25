@@ -29,22 +29,22 @@ def nextpow2(x: int) -> int:
 
 
 class RFDataShape:
-    def __init__(self, nt: int, np: int, nq: int, nfft: int, dt: float):
-        self.nt = nt
-        self.np = np
-        self.nq = nq
-        self.nfft = nfft
-        self.dt = dt
+    def __init__(self, nT: int, nP: int, nQ: int, nFFT: int, dT: float):
+        self.nT = nT
+        self.nP = nP
+        self.nQ = nQ
+        self.nFFT = nFFT
+        self.dT = dT
 
     @staticmethod
     def from_sample(
         y: torch.Tensor, q: torch.Tensor, t: torch.Tensor, **_
     ) -> "RFDataShape":
-        nt, np = y.shape
-        nq = q.numel()
-        nfft = 2 * nextpow2(nt)
-        dt = (t[1] - t[0]).item()
-        return RFDataShape(nt=nt, np=np, nq=nq, nfft=nfft, dt=dt)
+        nT, nP = y.shape
+        nQ = q.numel()
+        nFFT = 2 * nextpow2(nT)
+        dT = (t[1] - t[0]).item()
+        return RFDataShape(nT=nT, nP=nP, nQ=nQ, nFFT=nFFT, dT=dT)
 
     @staticmethod
     def peek(sample: RFData):
@@ -56,12 +56,12 @@ class RFDataShape:
         assert len(sample["rayP"].shape) == 1
         assert len(sample["q"].shape) == 1
 
-        nt = sample["t"].numel()
-        np = sample["rayP"].numel()
-        nq = sample["q"].numel()
+        nT = sample["t"].numel()
+        nP = sample["rayP"].numel()
+        nQ = sample["q"].numel()
 
-        assert sample["y"].shape == (nt, np)
-        assert sample["x"].shape == (nt, nq)
+        assert sample["y"].shape == (nT, nP)
+        assert sample["x"].shape == (nT, nQ)
         if sample["y_hat"] is not None:
             assert sample["y_hat"].shape == sample["y"].shape
 
@@ -81,7 +81,7 @@ def retrieve_single_xy(
         "tx_filt": "y_hat",  # signal after filtering
     }
     data = loadmat(path)
-    nt = data["taus"].size
+    nT = data["taus"].size
 
     return (
         {
@@ -92,10 +92,10 @@ def retrieve_single_xy(
             for k1, k2 in v1d_translation.items()
         }
         | {
-            # (.., nt) -> (nt, ..)
+            # (.., nT) -> (nT, ..)
             k2: (
                 torch.tensor(data[k1], device=device, dtype=TIME_DTYPE)
-                if data[k1].shape[0] == nt
+                if data[k1].shape[0] == nT
                 else torch.tensor(data[k1], device=device, dtype=TIME_DTYPE).T
             )
             for k1, k2 in v2d_translation.items()
@@ -129,8 +129,8 @@ def plot_sample(
 
 def plot_x(data: torch.Tensor, ax: plt.Axes, t: torch.Tensor, q: torch.Tensor, **_):
     # plot sparse codes x (T, Q)
-    nt = t.numel()
-    if data.shape[-1] != nt:
+    nT = t.numel()
+    if data.shape[-1] != nT:
         data = data.T
 
     sns.heatmap(
@@ -147,8 +147,8 @@ def plot_x(data: torch.Tensor, ax: plt.Axes, t: torch.Tensor, q: torch.Tensor, *
 
 def plot_y(data: torch.Tensor, ax: plt.Axes, t: torch.Tensor, rayP: torch.Tensor, **_):
     # plot sparse codes y (T, P)
-    nt = t.numel()
-    if data.shape[-1] != nt:
+    nT = t.numel()
+    if data.shape[-1] != nT:
         data = data.T
 
     sns.heatmap(
