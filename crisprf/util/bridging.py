@@ -1,9 +1,6 @@
 import torch
 from scipy.io import loadmat
 
-import seaborn as sns
-from matplotlib import pyplot as plt
-
 import os.path as osp
 from typing import TypedDict
 
@@ -22,7 +19,7 @@ class RFData(TypedDict):
     y_hat: torch.Tensor | None  # (T, P) signal after filtering
 
 
-def nextpow2(x: int) -> int:
+def _nextpow2(x: int) -> int:
     if x == 0:
         return 0
     return 2 ** (x - 1).bit_length()
@@ -42,7 +39,7 @@ class RFDataShape:
     ) -> "RFDataShape":
         nT, nP = y.shape
         nQ = q.numel()
-        nFFT = 2 * nextpow2(nT)
+        nFFT = 2 * _nextpow2(nT)
         dT = (t[1] - t[0]).item()
         return RFDataShape(nT=nT, nP=nP, nQ=nQ, nFFT=nFFT, dT=dT)
 
@@ -102,62 +99,3 @@ def retrieve_single_xy(
             if k1 in data
         }
     )
-
-
-def plot_sample(
-    prefix_scope: tuple[str] = ("x", "y"), save_path: str = "fig/example.png", **kwargs
-):
-    xy_keys = sorted(list(filter(lambda k: k[0] in prefix_scope, kwargs.keys())))
-    n_plots = len(xy_keys)
-
-    fig, axes = plt.subplots(n_plots, 1, figsize=(10, 5 * n_plots), sharex=True)
-    axes: list[plt.Axes] = [axes] if n_plots == 1 else axes.ravel()
-
-    for ax, k in zip(axes, xy_keys):
-        if "x" in k:
-            plot_x(data=kwargs[k], ax=ax, **kwargs)
-        else:
-            plot_y(data=kwargs[k], ax=ax, **kwargs)
-        # set key as ax title, e.g. "y_hat"
-        ax.set_title(k)
-
-    # axes[-1].locator_params(axis="x", nbins=10)
-    axes[-1].set_xlabel("Time (s)")
-    plt.tight_layout()
-    plt.savefig(save_path, pad_inches=0)
-
-
-def plot_x(data: torch.Tensor, ax: plt.Axes, t: torch.Tensor, q: torch.Tensor, **_):
-    # plot sparse codes x (T, Q)
-    nT = t.numel()
-    if data.shape[-1] != nT:
-        data = data.T
-
-    sns.heatmap(
-        data.detach().cpu(),
-        ax=ax,
-        xticklabels=list(map(lambda x: f"{x:.0f}", t.detach().cpu().numpy())),
-        yticklabels=list(map(lambda x: f"{x:.0f}", q.detach().cpu().numpy())),
-        linewidths=0,
-        center=0,
-    )
-    ax.locator_params(axis="both", nbins=10)
-    ax.set_ylabel("q (s/km)")
-
-
-def plot_y(data: torch.Tensor, ax: plt.Axes, t: torch.Tensor, rayP: torch.Tensor, **_):
-    # plot sparse codes y (T, P)
-    nT = t.numel()
-    if data.shape[-1] != nT:
-        data = data.T
-
-    sns.heatmap(
-        data.detach().cpu(),
-        ax=ax,
-        xticklabels=list(map(lambda x: f"{x:.0f}", t.detach().cpu().numpy())),
-        yticklabels=list(map(lambda x: f"{x:.3f}", rayP.detach().cpu().numpy())),
-        linewidths=0,
-        center=0,
-    )
-    ax.locator_params(axis="both", nbins=10)
-    ax.set_ylabel("Ray parameter (deg)")
