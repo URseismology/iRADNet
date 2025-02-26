@@ -4,8 +4,7 @@ from tqdm import tqdm
 
 from typing import Generator
 
-from crisprf.model.FISTA import fista
-from crisprf.model.solver import sparse_inverse_radon_fista
+from crisprf.model.FISTA import sparse_inverse_radon_fista
 from crisprf.util.dataloading import SRTDataset
 from crisprf.util.evaluation import eval_metrics
 
@@ -13,11 +12,11 @@ DEVICE = torch.device("cuda")
 
 
 def grid_search():
-    for l in torch.linspace(0.8, 2.6, 10):
-        for mu in tqdm(torch.linspace(0.1, 0.9, 9)):
-            with open(f"log/l={l:.2f}_mu={mu:.2f}.csv", "a") as f:
-                f.write(f"{l:.2f},{mu:.2f},")
+    with open(f"log/fista_param_search.csv", "a") as f:
+        for l in torch.linspace(0.8, 2.6, 10):
+            for mu in torch.linspace(0.1, 0.9, 9):
                 for d in inference(l, mu):
+                    f.write(f"{l:.2f},{mu:.2f},")
                     f.write(",".join(map(str, d)) + "\n")
 
 
@@ -27,16 +26,15 @@ def inference(
     dataset = SRTDataset(device=DEVICE)
 
     for i, sample in enumerate(dataset):
-        for x_hat, elapsed in sparse_inverse_radon_fista(
+        for x_hat in sparse_inverse_radon_fista(
             sample,
             alphas=(lambd, mu),
             n_layers=10,
             device=DEVICE,
-            ista_fn=fista,
         ):
-            mse, nmse, nonzeros = eval_metrics(x_hat, sample["x"])
-            break
-        yield elapsed, mse, nmse, nonzeros
+            pass
+        mse, nmse, nonzeros = eval_metrics(x_hat, sample["x"])
+        yield mse, nmse, nonzeros
 
 
 if __name__ == "__main__":

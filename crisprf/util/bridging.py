@@ -10,7 +10,6 @@ EXAMPLE = "data/sample.mat"
 
 
 class RFData(TypedDict):
-    data_id: str
     q: torch.Tensor  # (Q,) q range
     rayP: torch.Tensor  # (P,) ray parameters
     t: torch.Tensor  # (T,) time dimension
@@ -80,22 +79,16 @@ def retrieve_single_xy(
     data = loadmat(path)
     nT = data["taus"].size
 
-    return (
-        {
-            "data_id": osp.basename(path),
-        }
-        | {
-            k2: torch.tensor(data[k1], device=device, dtype=TIME_DTYPE).squeeze()
-            for k1, k2 in v1d_translation.items()
-        }
-        | {
-            # (.., nT) -> (nT, ..)
-            k2: (
-                torch.tensor(data[k1], device=device, dtype=TIME_DTYPE)
-                if data[k1].shape[0] == nT
-                else torch.tensor(data[k1], device=device, dtype=TIME_DTYPE).T
-            )
-            for k1, k2 in v2d_translation.items()
-            if k1 in data
-        }
-    )
+    return {
+        k2: torch.tensor(data[k1], device=device, dtype=TIME_DTYPE).squeeze()
+        for k1, k2 in v1d_translation.items()
+    } | {
+        # (.., nT) -> (nT, ..)
+        k2: (
+            torch.tensor(data[k1], device=device, dtype=TIME_DTYPE)
+            if data[k1].shape[0] == nT
+            else torch.tensor(data[k1], device=device, dtype=TIME_DTYPE).T
+        )
+        for k1, k2 in v2d_translation.items()
+        if k1 in data
+    }
