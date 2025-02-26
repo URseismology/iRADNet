@@ -105,8 +105,7 @@ def sparse_inverse_radon_fista(
     )
 
     # Perform FISTA
-    start = time_ns()
-    for x in ista_fn(
+    return ista_fn(
         x0=x0,
         y_freq=y_freq,
         radon3d=radon3d,
@@ -115,8 +114,7 @@ def sparse_inverse_radon_fista(
         ihigh=ihigh,
         n_layers=n_layers,
         lambd=alphas[0],
-    ):
-        yield x, time_ns() - start
+    )
 
 
 if __name__ == "__main__":

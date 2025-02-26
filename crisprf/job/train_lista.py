@@ -1,18 +1,19 @@
 import torch
 from torch.utils.data import DataLoader
 
-from crisprf.model.LISTA_CP import SRT_LISTA_CP
 from crisprf.model.AdaLISTA import SRT_AdaLISTA
 from crisprf.model.LISTA_base import LISTA_base
+from crisprf.model.LISTA_CP import SRT_LISTA_CP
 from crisprf.model.radon3d import init_radon3d_mat, time2freq
 from crisprf.util.bridging import RFDataShape
 from crisprf.util.dataloading import SRTDataset
 from crisprf.util.evaluation import eval_metrics, get_loss
-from crisprf.util.plotting import plot_radon2d
+from crisprf.util.noise import gen_noise
+from crisprf.util.plotting import plot_outliers
 
 
 def train_lista(
-    srt_model: LISTA_base = SRT_LISTA_CP,
+    model_class: LISTA_base = SRT_LISTA_CP,
     device: torch.device = torch.device("cuda:0"),
 ) -> LISTA_base:
     dataset = SRTDataset(device=device)
@@ -22,7 +23,7 @@ def train_lista(
     # test_loader = DataLoader(dataset, batch_size=1, shuffle=True)
 
     radon3d = init_radon3d_mat(sample["q"], sample["rayP"], shapes, N=2, device=device)
-    model: LISTA_base = srt_model(
+    model: LISTA_base = model_class(
         radon3d=radon3d,
         n_layers=10,
         shapes=shapes,
@@ -38,7 +39,8 @@ def train_lista(
             # (nT, nP) -> (nFFT, nP)
             y_freq = time2freq(y, shapes.nFFT)
 
-            for x_hat in model(x, y_freq):
+            x0 = torch.zeros_like(x)
+            for x_hat in model(x0=x0, y_freq=y_freq):
                 pass
 
             loss = get_loss(x_hat, x)
@@ -47,7 +49,8 @@ def train_lista(
                 eval_metrics(
                     x_hat,
                     x,
-                    # f"tmp/lista_e{epoch}.png",
+                    f"tmp/{model_class.__name__}_e{epoch}.png",
+                    log_path=f"log/{model_class.__name__}.csv",
                     **sample,
                 ),
             )
@@ -61,18 +64,48 @@ def train_lista(
     return model
 
 
-def plot_difference(
-    srt_model: LISTA_base = SRT_LISTA_CP,
+def eval_lista(
+    model_class: LISTA_base = SRT_AdaLISTA,
+    snr: float = None,
+    device: torch.device = torch.device("cuda:0"),
 ):
-    model = LISTA_base.load_checkpoint(srt_model)
+    model = LISTA_base.load_checkpoint(model_class)
+    model.eval()
+    model.to(device)
+
+    dataset = SRTDataset(device=device)
+    sample = dataset[0]
+    shapes = RFDataShape.from_sample(**sample)
+
+    y = sample["y"]
+    if snr is not None:
+        y = y + gen_noise(y, dT=shapes.dT, snr=snr)
+
+    y_freq = time2freq(y, shapes.nFFT)
+    x0 = torch.zeros_like(sample["x"])
+
+    for x_hat in model(x0, y_freq):
+        pass
+    print(eval_metrics(x_hat, sample["x"]))
+
+    return model
+
+
+def plot_difference(
+    model_class: LISTA_base = SRT_LISTA_CP,
+):
+    model = LISTA_base.load_checkpoint(model_class)
     model.eval()
 
-    fig = plot_radon2d(model.radon3d[1], model.W1[1])
-    fig.savefig("tmp/w1_1.png")
-    fig = plot_radon2d(model.radon3d[4096], model.W1[4096])
-    fig.savefig("tmp/w1_4096.png")
+    # fig = plot_radon2d(model.radon3d[1], model.W1[1])
+    # fig.savefig("tmp/w1_1.png")
+    # fig = plot_radon2d(model.radon3d[4096], model.W1[4096])
+    # fig.savefig("tmp/w1_4096.png")
+    plot_outliers(model.radon3d, model.W1)
     print(model.__class__.__name__)
 
 
 if __name__ == "__main__":
-    train_lista()
+    # train_lista()
+    # eval_lista(snr=1)
+    plot_difference()

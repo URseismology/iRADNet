@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 
-
 from ..util.bridging import RFDataShape
 from ..util.constants import AUTO_DEVICE
 

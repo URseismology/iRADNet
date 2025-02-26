@@ -1,16 +1,16 @@
 import torch
 import torch.nn as nn
 
-from .LISTA_base import LISTA_base
-from ..util.constants import AUTO_DEVICE
 from ..util.bridging import RFDataShape
+from ..util.constants import AUTO_DEVICE
 from ..util.shrink import shrink_soft
+from .LISTA_base import LISTA_base
 from .radon3d import (
     cal_lipschitz,
     freq2time,
-    time2freq,
     radon3d_forward,
     radon3d_forward_adjoint,
+    time2freq,
 )
 
 
@@ -21,6 +21,8 @@ class SRT_AdaLISTA(LISTA_base):
         radon3d: torch.Tensor,
         n_layers: int,
         shapes: RFDataShape,
+        shared_theta: bool = False,
+        shared_weight: bool = True,
         freq_index_bounds: tuple[int, int] = None,
         alpha: float = 0.9,
         device: torch.device = AUTO_DEVICE,
