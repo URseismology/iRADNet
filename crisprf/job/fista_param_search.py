@@ -5,7 +5,7 @@ from tqdm import tqdm
 from typing import Generator
 
 from crisprf.model.FISTA import sparse_inverse_radon_fista
-from crisprf.util import SRTDataset, eval_metrics
+from crisprf.util import eval_metrics
 
 DEVICE = torch.device("cuda")
 
@@ -22,17 +22,14 @@ def grid_search():
 def inference(
     lambd: float, mu: float
 ) -> Generator[tuple[int, float, float, int], None, None]:
-    dataset = SRTDataset(device=DEVICE)
-
-    for i, sample in enumerate(dataset):
-        for x_hat in sparse_inverse_radon_fista(
-            sample,
-            alphas=(lambd, mu),
-            n_layers=10,
-            device=DEVICE,
-        ):
-            pass
-        mse, nmse, nonzeros = eval_metrics(x_hat, sample["x"])
+    for sample_with_results in sparse_inverse_radon_fista(
+        alphas=(lambd, mu),
+        n_layers=10,
+        device=DEVICE,
+    ):
+        mse, nmse, nonzeros = eval_metrics(
+            sample_with_results["x_hat"], sample_with_results["x"]
+        )
         yield mse, nmse, nonzeros
 
 

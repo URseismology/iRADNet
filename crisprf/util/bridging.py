@@ -15,6 +15,9 @@ class RFData(TypedDict):
     t: torch.Tensor  # (T,) time dimension
     x: torch.Tensor  # (T, Q) sparse codes
     y: torch.Tensor  # (T, P) signal
+
+    y_noise: torch.Tensor | None  # (T, P) signal with noise
+    x_hat: torch.Tensor | None  # (T, Q) sparse codes after filtering
     y_hat: torch.Tensor | None  # (T, P) signal after filtering
 
 

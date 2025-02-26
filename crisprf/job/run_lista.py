@@ -1,6 +1,8 @@
 import torch
 from torch.utils.data import DataLoader
 
+import argparse
+
 from crisprf.model import (
     SRT_LISTA_CP,
     LISTA_base,
@@ -9,10 +11,8 @@ from crisprf.model import (
     time2freq,
 )
 from crisprf.util import (
-    RFDataShape,
     SRTDataset,
     eval_metrics,
-    gen_noise,
     get_loss,
     plot_outliers,
     plot_sample,
@@ -24,8 +24,8 @@ def train_lista(
     device: torch.device = torch.device("cuda:0"),
 ) -> LISTA_base:
     dataset = SRTDataset(device=device)
+    shapes = dataset.shapes
     sample = dataset[0]
-    shapes = RFDataShape.from_sample(**sample)
     train_loader = DataLoader(dataset, batch_size=1, shuffle=False)
     # test_loader = DataLoader(dataset, batch_size=1, shuffle=True)
 
@@ -73,7 +73,7 @@ def train_lista(
 
 def eval_lista(
     model_class: LISTA_base = SRT_AdaLISTA,
-    snr: float = None,
+    snr: float | None = None,
     device: torch.device = torch.device("cuda:0"),
     fig_path: str = None,
 ):
@@ -81,17 +81,13 @@ def eval_lista(
     model.eval()
     model.to(device)
 
-    dataset = SRTDataset(device=device)
+    dataset = SRTDataset(snr=snr, device=device)
     sample = dataset[0]
-    shapes = RFDataShape.from_sample(**sample)
+    shapes = dataset.shapes
 
-    y = sample["y"]
-    if snr is not None:
-        noise = gen_noise(y, dT=shapes.dT, snr=snr)
-        plot_sample(**sample, y_noise=y + noise, save_path="tmp/problem.png")
-        y = y + noise
+    plot_sample(**sample, save_path="tmp/problem.png")
 
-    y_freq = time2freq(y, shapes.nFFT)
+    y_freq = time2freq(sample["y_noise"], shapes.nFFT)
     x0 = torch.zeros_like(sample["x"])
 
     for x_hat in model(x0, y_freq):
@@ -115,7 +111,28 @@ def plot_difference(
     print(model.__class__.__name__)
 
 
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", type=str, default="SRT_LISTA_CP")
+    parser.add_argument("--snr", type=float, default=None)
+    parser.add_argument("--device", type=str, default="cuda:0")
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == "__main__":
-    # train_lista()
-    eval_lista(snr=1, fig_path="tmp/adalista_snr=1.0.png")
-    # plot_difference()
+    args = get_args()
+    if args.model == "SRT_LISTA_CP":
+        model_class = SRT_LISTA_CP
+    elif args.model == "SRT_AdaLISTA":
+        model_class = SRT_AdaLISTA
+    train_lista(
+        model_class=model_class,
+        device=args.device,
+    )
+    eval_lista(
+        model_class=model_class,
+        snr=args.snr,
+        device=args.device,
+        fig_path=f"tmp/{args.device}_snr={args.snr}.png",
+    )

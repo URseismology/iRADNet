@@ -3,13 +3,10 @@ import argparse
 from crisprf.model.FISTA import sparse_inverse_radon_fista
 from crisprf.util import AUTO_DEVICE, eval_metrics, retrieve_single_xy
 
-SAMPLE = retrieve_single_xy(device=AUTO_DEVICE)
-
 
 def run_fista(args: argparse.Namespace):
-    for i, x_hat in enumerate(
+    for i, sample_with_result in enumerate(
         sparse_inverse_radon_fista(
-            SAMPLE,
             alphas=(args.lambd, args.mu),
             n_layers=args.n_layers,
             snr=args.snr,
@@ -17,18 +14,12 @@ def run_fista(args: argparse.Namespace):
         )
     ):
         eval_metrics(
-            pred=x_hat,
-            gt=SAMPLE["x"],
-            # fig_path=f"tmp/fista/fista_{i}.png",
-            log_path=f"log/fista.csv",
-            **SAMPLE,
+            pred=sample_with_result["x_hat"],
+            gt=sample_with_result["x"],
+            # save the first sample as a reference
+            fig_path=f"tmp/fista_snr={args.snr}.png" if i == 0 else None,
+            **sample_with_result,
         )
-    eval_metrics(
-        pred=x_hat,
-        gt=SAMPLE["x"],
-        fig_path=f"tmp/fista_snr={args.snr}.png",
-        **SAMPLE,
-    )
 
 
 def parse_args():
