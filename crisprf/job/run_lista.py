@@ -15,6 +15,7 @@ from crisprf.util import (
     gen_noise,
     get_loss,
     plot_outliers,
+    plot_sample,
 )
 
 
@@ -86,7 +87,9 @@ def eval_lista(
 
     y = sample["y"]
     if snr is not None:
-        y = y + gen_noise(y, dT=shapes.dT, snr=snr)
+        noise = gen_noise(y, dT=shapes.dT, snr=snr)
+        plot_sample(**sample, y_noise=y + noise, save_path="tmp/problem.png")
+        y = y + noise
 
     y_freq = time2freq(y, shapes.nFFT)
     x0 = torch.zeros_like(sample["x"])
@@ -114,5 +117,5 @@ def plot_difference(
 
 if __name__ == "__main__":
     # train_lista()
-    # eval_lista(snr=1)
-    plot_difference()
+    eval_lista(snr=1, fig_path="tmp/adalista_snr=1.0.png")
+    # plot_difference()

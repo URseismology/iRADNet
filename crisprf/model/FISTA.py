@@ -4,8 +4,7 @@ import torch.nn.functional as F
 from math import sqrt
 from typing import Generator
 
-from ..util import AUTO_DEVICE, FREQ_DTYPE, RFData, RFDataShape
-from .FISTA import fista
+from ..util import AUTO_DEVICE, FREQ_DTYPE, RFData, RFDataShape, gen_noise
 from .radon3d import (
     cal_lipschitz,
     freq2time,
@@ -98,6 +97,7 @@ def get_x0(
 def sparse_inverse_radon_fista(
     sample: RFData,
     alphas: tuple[float, float],
+    snr: float = None,
     n_layers: int = 10,
     freq_bounds: tuple[float, float] = None,
     device: torch.device = AUTO_DEVICE,
@@ -111,6 +111,8 @@ def sparse_inverse_radon_fista(
         seismic traces, ray parameters, q range
     alphas : tuple[float, float]
         regularization parameter for lambda and mu
+    snr : float, optional
+        signal to noise ratio, :math:`inf` if None, by default None
     n_layers : int
         max number of iterations
     freq_bounds : tuple[float, float]
@@ -129,7 +131,10 @@ def sparse_inverse_radon_fista(
     sample = {k: v.to(device) for k, v in sample.items()}
 
     # init signal in frequency domain
-    y_freq: torch.Tensor = torch.fft.fft(sample["y"], nFFT, dim=0)
+    y = sample["y"]
+    if snr is not None:
+        y = y + gen_noise(y, dT=dT, snr=snr)
+    y_freq: torch.Tensor = torch.fft.fft(y, nFFT, dim=0)
 
     # init radon transform matrix
     radon3d = init_radon3d_mat(
