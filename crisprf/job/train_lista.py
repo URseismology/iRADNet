@@ -8,11 +8,14 @@ from crisprf.model import (
     init_radon3d_mat,
     time2freq,
 )
-from crisprf.util.bridging import RFDataShape
-from crisprf.util.dataloading import SRTDataset
-from crisprf.util.evaluation import eval_metrics, get_loss
-from crisprf.util.noise import gen_noise
-from crisprf.util.plotting import plot_outliers
+from crisprf.util import (
+    RFDataShape,
+    SRTDataset,
+    eval_metrics,
+    gen_noise,
+    get_loss,
+    plot_outliers,
+)
 
 
 def train_lista(
@@ -71,6 +74,7 @@ def eval_lista(
     model_class: LISTA_base = SRT_AdaLISTA,
     snr: float = None,
     device: torch.device = torch.device("cuda:0"),
+    fig_path: str = None,
 ):
     model = LISTA_base.load_checkpoint(model_class)
     model.eval()
@@ -89,7 +93,7 @@ def eval_lista(
 
     for x_hat in model(x0, y_freq):
         pass
-    print(eval_metrics(x_hat, sample["x"]))
+    print(eval_metrics(x_hat, sample["x"], fig_path=fig_path, **sample))
 
     return model
 

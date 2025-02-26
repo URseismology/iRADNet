@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
 
-from ..util.bridging import RFDataShape
-from ..util.constants import AUTO_DEVICE
+from ..util import AUTO_DEVICE, RFDataShape
 
 
 def _init_param_list(n: int, alpha: float, device: torch.device):

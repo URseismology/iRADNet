@@ -1,8 +1,7 @@
 import torch
 import torch.fft as fft
 
-from crisprf.util.bridging import RFDataShape
-from crisprf.util.constants import AUTO_DEVICE, FREQ_DTYPE, TIME_DTYPE
+from crisprf.util import RFDataShape, AUTO_DEVICE, FREQ_DTYPE, TIME_DTYPE
 
 
 def init_radon3d_mat(

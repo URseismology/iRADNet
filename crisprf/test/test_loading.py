@@ -2,8 +2,7 @@ import torch
 
 import pytest
 
-from crisprf.util.bridging import RFDataShape
-from crisprf.util.dataloading import SRTDataset
+from crisprf.util import RFDataShape, SRTDataset
 
 
 def test_srt_dataset():

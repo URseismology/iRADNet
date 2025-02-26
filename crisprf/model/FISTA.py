@@ -4,8 +4,7 @@ import torch.nn.functional as F
 from math import sqrt
 from typing import Generator
 
-from ..util.bridging import RFData, RFDataShape
-from ..util.constants import AUTO_DEVICE, FREQ_DTYPE
+from ..util import AUTO_DEVICE, FREQ_DTYPE, RFData, RFDataShape
 from .FISTA import fista
 from .radon3d import (
     cal_lipschitz,

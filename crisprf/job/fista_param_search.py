@@ -5,8 +5,7 @@ from tqdm import tqdm
 from typing import Generator
 
 from crisprf.model.FISTA import sparse_inverse_radon_fista
-from crisprf.util.dataloading import SRTDataset
-from crisprf.util.evaluation import eval_metrics
+from crisprf.util import SRTDataset, eval_metrics
 
 DEVICE = torch.device("cuda")
 

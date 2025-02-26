@@ -1,9 +1,6 @@
 from scipy.io import savemat
 
-from crisprf.util.bridging import RFDataShape
-from crisprf.util.dataloading import SRTDataset
-from crisprf.util.noise import gen_noise
-from crisprf.util.plotting import plot_sample
+from crisprf.util import RFDataShape, SRTDataset, gen_noise, plot_sample
 
 
 def test_gen_noise():

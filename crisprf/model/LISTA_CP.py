@@ -4,9 +4,7 @@ import torch.nn as nn
 from math import sqrt
 from typing import Generator
 
-from ..util.bridging import RFDataShape
-from ..util.constants import AUTO_DEVICE
-from ..util.shrink import shrink_soft
+from ..util import AUTO_DEVICE, RFDataShape, shrink_soft
 from .LISTA_base import LISTA_base
 from .radon3d import (
     cal_lipschitz,
