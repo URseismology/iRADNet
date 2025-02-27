@@ -6,13 +6,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from mpl_toolkits.mplot3d import Axes3D, axes3d
 
+import os
+
 
 def plot_radon3d(radon3d_init: torch.Tensor, radon3d: torch.Tensor, **kwargs):
-    pass
-    # now radon3d_init and radon3d are both (nFFT, nP, nQ) .complex128
-    # we want to plot the difference between these two matrices
-    # we can use np.linalg.norm to calculate the difference
-    # and then plot the difference
     fig = plt.figure()
     ax: Axes3D = fig.add_subplot(121, projection="3d")
     diff = (
@@ -100,7 +97,7 @@ def plot_outliers(radon3d_init: torch.Tensor, radon3d: torch.Tensor):
     ax: Axes3D = fig.add_subplot(121, projection="3d")
     diff_mag = (1 - torch.abs(radon3d) / torch.abs(radon3d_init)) * 100
     diff_mag = diff_mag.detach().cpu().numpy()
-    outlier_mag_map = np.abs(diff_mag) > 0.2
+    outlier_mag_map = np.abs(diff_mag) > 0.1
     for x, y, z in zip(*np.where(outlier_mag_map)):
         cax = ax.scatter(
             y, z, diff_mag[x, y, z], s=4, c=x / nFFT, vmin=0, vmax=1, alpha=0.5
@@ -117,7 +114,7 @@ def plot_outliers(radon3d_init: torch.Tensor, radon3d: torch.Tensor):
     ax: Axes3D = fig.add_subplot(122, projection="3d")
     diff_phase = torch.angle(radon3d_init) - torch.angle(radon3d)
     diff_phase = diff_phase.detach().cpu().numpy()
-    outlier_phase_map = np.abs(diff_phase) > 0.2
+    outlier_phase_map = np.abs(diff_phase) > 0.1
     for x, y, z in zip(*np.where(outlier_phase_map)):
         cax = ax.scatter(y, z, diff_phase[x, y, z], s=4, c=x / nFFT, vmin=0, vmax=1)
     ax.set(
@@ -129,13 +126,17 @@ def plot_outliers(radon3d_init: torch.Tensor, radon3d: torch.Tensor):
     )
     plt.colorbar(cax, ax=ax)
     fig.savefig("tmp/outliers.png")
-    # break
+    plt.close(fig)
 
 
 def plot_sample(
     prefix_scope: tuple[str] = ("x", "y"), save_path: str = "fig/example.png", **kwargs
 ):
-    xy_keys = sorted(list(filter(lambda k: k[0] in prefix_scope, kwargs.keys())))
+    xy_keys = sorted(
+        list(
+            filter(lambda k: any(k.startswith(p) for p in prefix_scope), kwargs.keys())
+        )
+    )
     n_plots = len(xy_keys)
 
     fig, axes = plt.subplots(n_plots, 1, figsize=(10, 5 * n_plots), sharex=True)
@@ -152,7 +153,9 @@ def plot_sample(
     # axes[-1].locator_params(axis="x", nbins=10)
     axes[-1].set_xlabel("Time (s)")
     plt.tight_layout()
-    plt.savefig(save_path, pad_inches=0)
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    fig.savefig(save_path, pad_inches=0)
+    plt.close(fig)
 
 
 def plot_x(data: torch.Tensor, ax: plt.Axes, t: torch.Tensor, q: torch.Tensor, **_):
@@ -168,6 +171,7 @@ def plot_x(data: torch.Tensor, ax: plt.Axes, t: torch.Tensor, q: torch.Tensor, *
         yticklabels=list(map(lambda x: f"{x:.0f}", q.detach().cpu().numpy())),
         linewidths=0,
         center=0,
+        cmap="vlag",
     )
     ax.locator_params(axis="both", nbins=10)
     ax.set_ylabel("q (s/km)")
@@ -186,6 +190,7 @@ def plot_y(data: torch.Tensor, ax: plt.Axes, t: torch.Tensor, rayP: torch.Tensor
         yticklabels=list(map(lambda x: f"{x:.3f}", rayP.detach().cpu().numpy())),
         linewidths=0,
         center=0,
+        cmap="vlag",
     )
     ax.locator_params(axis="both", nbins=10)
     ax.set_ylabel("Ray parameter (deg)")

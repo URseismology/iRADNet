@@ -18,8 +18,9 @@ def gen_noise(
 
     # init rand matrix, uniform or normal with mean 0; 0.5 is fine
     noise = torch.rand_like(y) - 0.5 if uniform else torch.randn_like(y)
+    noise_norm = torch.linalg.vector_norm(noise, ord=2, dim=0)
     # scale to desired SNR, snr=signal/noise
-    noise = noise * y1d_norm / torch.linalg.vector_norm(noise, ord=2, dim=0) / snr
+    noise = noise * y1d_norm / noise_norm / snr
 
     # filter with butterworth bandpass
     sos = butter(2, (lowcut, highcut), btype="band", output="sos", fs=1 / dT)

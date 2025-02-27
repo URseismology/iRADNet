@@ -1,7 +1,7 @@
 import argparse
 
 from crisprf.model.FISTA import sparse_inverse_radon_fista
-from crisprf.util import AUTO_DEVICE, eval_metrics, retrieve_single_xy
+from crisprf.util import AUTO_DEVICE, eval_metrics
 
 
 def run_fista(args: argparse.Namespace):

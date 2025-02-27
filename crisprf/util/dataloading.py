@@ -29,7 +29,9 @@ class SRTDataset(Dataset):
 
     def __getitem__(self, idx) -> RFData:
         sample = retrieve_single_xy(self.paths[idx], device=self.device)
-        if self.snr is not None:
+        if self.snr is None:
+            sample["y_noise"] = sample["y"]
+        else:
             noise = gen_noise(sample["y"], dT=self.shapes.dT, snr=self.snr)
             sample["y_noise"] = sample["y"] + noise
         return sample

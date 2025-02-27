@@ -1,18 +1,16 @@
 import torch
 from scipy.io import loadmat
 
-import os.path as osp
 from typing import TypedDict
 
 from .constants import AUTO_DEVICE, TIME_DTYPE
-
-EXAMPLE = "data/sample.mat"
 
 
 class RFData(TypedDict):
     q: torch.Tensor  # (Q,) q range
     rayP: torch.Tensor  # (P,) ray parameters
     t: torch.Tensor  # (T,) time dimension
+
     x: torch.Tensor  # (T, Q) sparse codes
     y: torch.Tensor  # (T, P) signal
 
@@ -66,7 +64,7 @@ class RFDataShape:
 
 
 def retrieve_single_xy(
-    path: str = EXAMPLE, device: torch.device = AUTO_DEVICE
+    path: str = "data/sample.mat", device: torch.device = AUTO_DEVICE
 ) -> RFData:
     # key translations, for 1d data and 2d data
     v1d_translation = {

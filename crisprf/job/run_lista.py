@@ -36,10 +36,12 @@ def train_lista(
         shapes=shapes,
         device=device,
     )
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=5e-3)
 
     for epoch in range(20):
         for batch in train_loader:
+            optimizer.zero_grad()
+
             x: torch.Tensor = batch["x"].squeeze(0).to(device)
             y: torch.Tensor = batch["y"].squeeze(0).to(device)
 
@@ -51,28 +53,26 @@ def train_lista(
                 pass
 
             loss = get_loss(x_hat, x)
-            print(
-                epoch,
-                eval_metrics(
-                    x_hat,
-                    x,
-                    f"tmp/{model_class.__name__}_e{epoch}.png",
-                    log_path=f"log/{model_class.__name__}.csv",
-                    **sample,
-                ),
-            )
             loss.backward()
             optimizer.step()
 
-    print(model.etas.state_dict())
-    print(model.gammas.state_dict())
-    model.save_checkpoint()
+        print(
+            epoch,
+            eval_metrics(
+                x_hat,
+                x,
+                fig_path=f"tmp/{model_class.__name__}/e{epoch}.png",
+                log_path=f"log/{model_class.__name__}.csv",
+                **sample,
+            ),
+        )
 
+    model.save_checkpoint()
     return model
 
 
 def eval_lista(
-    model_class: LISTA_base = SRT_AdaLISTA,
+    model_class: LISTA_base = SRT_LISTA_CP,
     snr: float | None = None,
     device: torch.device = torch.device("cuda:0"),
     fig_path: str = None,
@@ -84,8 +84,6 @@ def eval_lista(
     dataset = SRTDataset(snr=snr, device=device)
     sample = dataset[0]
     shapes = dataset.shapes
-
-    plot_sample(**sample, save_path="tmp/problem.png")
 
     y_freq = time2freq(sample["y_noise"], shapes.nFFT)
     x0 = torch.zeros_like(sample["x"])
@@ -115,6 +113,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default="SRT_LISTA_CP")
     parser.add_argument("--snr", type=float, default=None)
+    parser.add_argument("--eval", action=argparse.BooleanOptionalAction)
     parser.add_argument("--device", type=str, default="cuda:0")
     args = parser.parse_args()
     return args
@@ -126,13 +125,17 @@ if __name__ == "__main__":
         model_class = SRT_LISTA_CP
     elif args.model == "SRT_AdaLISTA":
         model_class = SRT_AdaLISTA
-    train_lista(
-        model_class=model_class,
-        device=args.device,
-    )
+    else:
+        raise NotImplementedError
+
+    if args.eval is None or not args.eval:
+        train_lista(
+            model_class=model_class,
+            device=args.device,
+        )
     eval_lista(
         model_class=model_class,
         snr=args.snr,
         device=args.device,
-        fig_path=f"tmp/{args.device}_snr={args.snr}.png",
+        fig_path=f"tmp/{args.model}_snr={args.snr}.png",
     )

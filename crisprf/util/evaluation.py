@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-import os.path as osp
+import os
 from time import time_ns
 
 from .plotting import plot_sample
@@ -29,12 +29,15 @@ def eval_metrics(
     nonzeros = torch.count_nonzero(pred)
 
     if fig_path is not None:
-        plot_sample(prefix_scope=("x",), save_path=fig_path, x_pred=pred, **kwargs)
+        plot_sample(
+            prefix_scope=("x",), save_path=fig_path, **(kwargs | {"x_hat": pred})
+        )
         print(f"fig saved to {fig_path}")
 
     if log_path is not None:
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
         # does not exist then overwrite then add header
-        if not osp.exists(log_path):
+        if not os.path.exists(log_path):
             with open(log_path, "w") as f:
                 f.write("timestamp,mse,nmse,nonzeros\n")
 
