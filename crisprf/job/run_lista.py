@@ -4,9 +4,11 @@ from torch.utils.data import DataLoader
 import argparse
 
 from crisprf.model import (
+    SRT_LISTA,
     SRT_LISTA_CP,
     LISTA_base,
     SRT_AdaLISTA,
+    SRT_AdaLFISTA,
     init_radon3d_mat,
     time2freq,
 )
@@ -15,7 +17,6 @@ from crisprf.util import (
     eval_metrics,
     get_loss,
     plot_outliers,
-    plot_sample,
 )
 
 
@@ -62,7 +63,11 @@ def train_lista(
                 x_hat,
                 x,
                 fig_path=f"tmp/{model_class.__name__}/e{epoch}.png",
-                log_path=f"log/{model_class.__name__}.csv",
+                log_path=f"log/train_{model_class.__name__}.csv",
+                log_settings={
+                    "epoch": epoch,
+                    "loss": loss.item(),
+                },
                 **sample,
             ),
         )
@@ -89,7 +94,16 @@ def eval_lista(
     x0 = torch.zeros_like(sample["x"])
 
     for x_hat in model(x0, y_freq):
-        pass
+        eval_metrics(
+            x_hat,
+            sample["x"],
+            log_path=f"log/{model_class.__name__}.csv",
+            log_settings={
+                "snr": snr,
+                "n_layers": model.n_layers,
+            },
+            **sample,
+        )
     print(eval_metrics(x_hat, sample["x"], fig_path=fig_path, **sample))
 
     return model
@@ -125,6 +139,10 @@ if __name__ == "__main__":
         model_class = SRT_LISTA_CP
     elif args.model == "SRT_AdaLISTA":
         model_class = SRT_AdaLISTA
+    elif args.model == "SRT_AdaLFISTA":
+        model_class = SRT_AdaLFISTA
+    elif args.model == "SRT_LISTA":
+        model_class = SRT_LISTA
     else:
         raise NotImplementedError
 
@@ -137,5 +155,5 @@ if __name__ == "__main__":
         model_class=model_class,
         snr=args.snr,
         device=args.device,
-        fig_path=f"tmp/{args.model}_snr={args.snr}.png",
+        fig_path=f"fig/{args.model}_snr={args.snr}.png",
     )

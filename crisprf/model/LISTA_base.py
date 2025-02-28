@@ -41,7 +41,7 @@ class LISTA_base(nn.Module):
     freq_index_bounds : tuple[int, int], optional
         frequency index bounds, by default None
     alpha : float, optional
-        initializer for gamma, by default 0.9
+        initializer for gamma, by default 1.0
     device : torch.device, optional
         device, by default AUTO_DEVICE
     """
@@ -54,7 +54,7 @@ class LISTA_base(nn.Module):
         shared_theta: bool = False,
         shared_weight: bool = True,
         freq_index_bounds: tuple[int, int] = None,
-        alpha: float = 0.9,
+        alpha: float = 1.0,
         device: torch.device = AUTO_DEVICE,
     ) -> None:
         super().__init__()

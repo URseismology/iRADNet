@@ -15,7 +15,7 @@ from .radon3d import (
 )
 
 
-class SRT_LISTA_CP(LISTA_base):
+class SRT_LISTA(LISTA_base):
 
     def __init__(
         self,
@@ -40,8 +40,8 @@ class SRT_LISTA_CP(LISTA_base):
         )
 
         # \Theta = {W1, W2} \cup {gamma(k), eta(k)}^K_{k=1}
-        self.W1 = nn.Parameter(radon3d.clone()).to(device)
-        self.W2 = nn.Parameter(radon3d.clone()).to(device)
+        self.Wx = nn.Parameter(radon3d.clone()).to(device)
+        self.Wy = nn.Parameter(radon3d.clone()).to(device)
 
         # each eta/gamma for each iteration; we have `n_layers`
         self.lip = cal_lipschitz(
@@ -63,15 +63,18 @@ class SRT_LISTA_CP(LISTA_base):
             # y_tilde = A(x)
             y_tilde_freq = radon3d_forward(
                 x_freq=time2freq(z, self.shapes.nFFT),
-                radon3d=self.W1,
+                radon3d=self.Wx,
                 ilow=self.ilow,
                 ihigh=self.ihigh,
             )
             # x_tilde = F^-1 L*(y_tilde - y_freq)
             x_tilde_freq = radon3d_forward_adjoint(
-                y_tilde_freq - y_freq, radon3d=self.W2, ilow=self.ilow, ihigh=self.ihigh
+                y_tilde_freq, radon3d=self.Wx, ilow=self.ilow, ihigh=self.ihigh
             )
-            x_tilde = freq2time(x_tilde_freq, nT=self.shapes.nT)
+            x_y_tilde_freq = radon3d_forward_adjoint(
+                y_freq, radon3d=self.Wy, ilow=self.ilow, ihigh=self.ihigh
+            )
+            x_tilde = freq2time(x_tilde_freq - x_y_tilde_freq, nT=self.shapes.nT)
 
             # shrinking
             x_prev = x

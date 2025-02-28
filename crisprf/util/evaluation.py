@@ -21,6 +21,7 @@ def eval_metrics(
     gt: torch.Tensor,
     fig_path: str = None,
     log_path: str = None,
+    log_settings: dict = None,
     **kwargs,
 ) -> tuple[float, float, int]:
     mse = FID_LOSS(pred, gt)
@@ -30,7 +31,7 @@ def eval_metrics(
 
     if fig_path is not None:
         plot_sample(
-            prefix_scope=("x",), save_path=fig_path, **(kwargs | {"x_hat": pred})
+            prefix_incl=("x_hat",), save_path=fig_path, **(kwargs | {"x_hat": pred})
         )
         print(f"fig saved to {fig_path}")
 
@@ -39,9 +40,11 @@ def eval_metrics(
         # does not exist then overwrite then add header
         if not os.path.exists(log_path):
             with open(log_path, "w") as f:
-                f.write("timestamp,mse,nmse,nonzeros\n")
+                f.write("timestamp,settings,mse,nmse,nonzeros\n")
 
         with open(log_path, "a") as f:
-            f.write(f"{time_ns()},{mse.item()},{nmse.item()},{nonzeros.item()}\n")
+            f.write(
+                f'{time_ns()},"{log_settings}",{mse.item()},{nmse.item()},{nonzeros.item()}\n'
+            )
 
     return mse.item(), nmse.item(), nonzeros.item()

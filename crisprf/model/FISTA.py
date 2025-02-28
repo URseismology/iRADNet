@@ -4,7 +4,14 @@ import torch.nn.functional as F
 from math import sqrt
 from typing import Generator
 
-from ..util import AUTO_DEVICE, FREQ_DTYPE, RFData, RFDataShape, SRTDataset
+from ..util import (
+    AUTO_DEVICE,
+    FREQ_DTYPE,
+    RFData,
+    RFDataShape,
+    SRTDataset,
+    eval_metrics,
+)
 from .radon3d import (
     cal_lipschitz,
     freq2time,
@@ -24,7 +31,7 @@ def fista(
     ihigh: int,
     n_layers: int,
     lambd: float,
-    alpha: float = 0.9,
+    alpha: float = 1.0,
 ):
     with torch.no_grad():
         x = x0
@@ -165,7 +172,18 @@ def sparse_inverse_radon_fista(
             n_layers=n_layers,
             lambd=alphas[0],
         ):
-            pass
+            eval_metrics(
+                pred=x_hat,
+                gt=sample["x"],
+                log_path="log/fista.csv",
+                log_settings={
+                    "snr": snr,
+                    "n_layers": n_layers,
+                    "lambd": alphas[0],
+                    "mu": alphas[1],
+                },
+                **sample,
+            )
 
         # yield final x(K) of each sample
         yield sample | {"x_hat": x_hat}

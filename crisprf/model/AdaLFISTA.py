@@ -12,7 +12,7 @@ from .radon3d import (
 )
 
 
-class SRT_AdaLISTA(LISTA_base):
+class SRT_AdaLFISTA(LISTA_base):
 
     def __init__(
         self,
@@ -52,13 +52,15 @@ class SRT_AdaLISTA(LISTA_base):
         # x0: (nT, nQ)
         # y: (nFFT, nP)
         x = torch.zeros_like(x0)
+        z = x
+        t_k = 1
 
         for k in range(self.n_layers):
             L1 = torch.einsum("bpq,bqq->bpq", self.radon3d, self.W1)
             L2 = torch.einsum("bpq,bpp->bpq", self.radon3d, self.W2)
 
             y_tilde_freq = radon3d_forward(
-                x_freq=time2freq(x, self.shapes.nFFT),
+                x_freq=time2freq(z, self.shapes.nFFT),
                 radon3d=L1,
                 ilow=self.ilow,
                 ihigh=self.ihigh,
@@ -70,5 +72,9 @@ class SRT_AdaLISTA(LISTA_base):
             x = shrink_soft(
                 x - self.get_gamma(k) * x_tilde / self.lip, self.get_eta(k) / self.lip
             )
+
+            t_k1 = (1 + (1 + 4 * t_k**2) ** 0.5) / 2
+            z = x + (t_k - 1) / t_k1 * (x - x0)
+            t_k = t_k1
 
             yield x

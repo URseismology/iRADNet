@@ -1,5 +1,5 @@
 import torch
-from scipy.io import loadmat
+from scipy.io import loadmat, savemat
 
 from typing import TypedDict
 
@@ -93,3 +93,14 @@ def retrieve_single_xy(
         for k1, k2 in v2d_translation.items()
         if k1 in data
     }
+
+
+def save_results(sample: RFData):
+    savemat(
+        "tmp/results.mat",
+        {
+            k: v.detach().cpu().numpy()
+            for k, v in sample.items()
+            if type(v) is torch.Tensor
+        },
+    )

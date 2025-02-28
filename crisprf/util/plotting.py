@@ -4,7 +4,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 import seaborn as sns
-from mpl_toolkits.mplot3d import Axes3D, axes3d
+from mpl_toolkits.mplot3d import Axes3D
 
 import os
 
@@ -130,27 +130,48 @@ def plot_outliers(radon3d_init: torch.Tensor, radon3d: torch.Tensor):
 
 
 def plot_sample(
-    prefix_scope: tuple[str] = ("x", "y"), save_path: str = "fig/example.png", **kwargs
+    prefix_incl: list[str] = ["x", "y"],
+    prefix_excl: list[str] = [],
+    key_incl: list[str] = [],
+    key_excl: list[str] = ["y_hat"],
+    save_path: str = "fig/example.png",
+    **kwargs,
 ):
-    xy_keys = sorted(
-        list(
-            filter(lambda k: any(k.startswith(p) for p in prefix_scope), kwargs.keys())
+    def _key_filter(k: str) -> bool:
+        # include if any prefix_incl is a prefix of k
+        # exclude if any prefix_excl is a prefix of k
+        if k in key_incl:
+            return True
+        if k in key_excl:
+            return False
+
+        return any(k.startswith(p) for p in prefix_incl) and not any(
+            k.startswith(p) for p in prefix_excl
         )
-    )
+
+    xy_keys = sorted(list(filter(_key_filter, kwargs.keys())))
     n_plots = len(xy_keys)
 
     fig, axes = plt.subplots(n_plots, 1, figsize=(10, 5 * n_plots), sharex=True)
     axes: list[plt.Axes] = [axes] if n_plots == 1 else axes.ravel()
 
-    for ax, k in zip(axes, xy_keys):
+    for i_ax, (ax, k) in enumerate(zip(axes, xy_keys)):
         if "x" in k:
             plot_x(data=kwargs[k], ax=ax, **kwargs)
         else:
-            plot_y(data=kwargs[k], ax=ax, **kwargs)
+            plot_wiggle(data=kwargs[k], ax=ax, **kwargs)
+        if len(xy_keys) > 1:
+            ax.text(
+                -0.1,
+                1.0,
+                f"({chr(97 + i_ax)})",
+                transform=ax.transAxes,
+                size=20,
+            )
         # set key as ax title, e.g. "y_hat"
         ax.set_title(k)
 
-    # axes[-1].locator_params(axis="x", nbins=10)
+    axes[-1].locator_params(axis="x", nbins=10)
     axes[-1].set_xlabel("Time (s)")
     plt.tight_layout()
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -169,11 +190,15 @@ def plot_x(data: torch.Tensor, ax: plt.Axes, t: torch.Tensor, q: torch.Tensor, *
         ax=ax,
         xticklabels=list(map(lambda x: f"{x:.0f}", t.detach().cpu().numpy())),
         yticklabels=list(map(lambda x: f"{x:.0f}", q.detach().cpu().numpy())),
-        linewidths=0,
         center=0,
-        cmap="vlag",
+        cmap="seismic",
+        cbar_kws={"orientation": "horizontal", "aspect": 40, "pad": 0.05},
     )
-    ax.locator_params(axis="both", nbins=10)
+    ax.set_yticks(
+        np.linspace(0, q.numel(), 5),
+        [f"{i:.0f}" for i in np.linspace(q.min().item(), q.max().item(), 5)],
+    )
+    ax.grid()
     ax.set_ylabel("q (s/km)")
 
 
@@ -190,7 +215,39 @@ def plot_y(data: torch.Tensor, ax: plt.Axes, t: torch.Tensor, rayP: torch.Tensor
         yticklabels=list(map(lambda x: f"{x:.3f}", rayP.detach().cpu().numpy())),
         linewidths=0,
         center=0,
-        cmap="vlag",
+        cmap="seismic",
+        cbar_kws={"orientation": "horizontal", "aspect": 40, "pad": 0.05},
     )
-    ax.locator_params(axis="both", nbins=10)
+    ax.grid()
+    ax.locator_params(axis="y", nbins=5)
+    ax.set_ylabel("Ray parameter (deg)")
+
+
+def plot_wiggle(
+    data: torch.Tensor, ax: plt.Axes, t: torch.Tensor, rayP: torch.Tensor, **_
+):
+    nT = t.numel()
+    if data.shape[-1] != nT:
+        data = data.T
+
+    # y is a (nP, nT) tensor
+    data = data / data.abs().max()
+    data = data.detach().cpu().numpy()
+    p_min = rayP.min().item()
+    p_max = rayP.max().item()
+    nP = rayP.numel()
+
+    x_rng = np.arange(nT)
+    ax.grid()
+    for i in reversed(range(data.shape[0])):
+        _data = data[i] + i
+        ax.plot(x_rng, _data, color="black", lw=1, rasterized=True)
+        ax.fill_between(
+            x_rng, _data, i, where=(data[i] > 0), facecolor="#f00", rasterized=True
+        )
+        ax.fill_between(
+            x_rng, _data, i, where=(data[i] < 0), facecolor="#00f", rasterized=True
+        )
+
+    ax.set_yticks(np.linspace(0, nP, 5), np.linspace(p_min, p_max, 5))
     ax.set_ylabel("Ray parameter (deg)")
