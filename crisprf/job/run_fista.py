@@ -28,7 +28,7 @@ def parse_args():
     parser.add_argument("--snr", type=float, default=None)
     parser.add_argument("--n_layers", type=int, default=10)
     parser.add_argument("--lambd", type=float, default=1.4)
-    parser.add_argument("--mu", type=float, default=1.0)
+    parser.add_argument("--mu", type=float, default=0.4)
     parser.add_argument("--device", type=str, default=AUTO_DEVICE)
     args = parser.parse_args()
     return args

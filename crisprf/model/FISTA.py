@@ -35,7 +35,7 @@ def fista(
 ):
     with torch.no_grad():
         x = x0
-        z = x
+        z = x0
         q_t = 1
         step_size = alpha / cal_lipschitz(
             radon3d=radon3d, nT=shapes.nT, ilow=ilow, ihigh=ihigh
@@ -159,6 +159,19 @@ def sparse_inverse_radon_fista(
             ihigh=ihigh,
             mu=alphas[1],
             shapes=shapes,
+        )
+
+        eval_metrics(
+            pred=x0,
+            gt=sample["x"],
+            log_path="log/fista.csv",
+            log_settings={
+                "snr": snr,
+                "n_layers": n_layers,
+                "lambd": alphas[0],
+                "mu": alphas[1],
+            },
+            **sample,
         )
 
         # run FISTA from x(0) -> x(K)

@@ -38,7 +38,6 @@ def train_lista(
         device=device,
     )
     optimizer = torch.optim.Adam(model.parameters(), lr=5e-3)
-
     for epoch in range(20):
         for batch in train_loader:
             optimizer.zero_grad()
@@ -62,7 +61,11 @@ def train_lista(
             eval_metrics(
                 x_hat,
                 x,
-                fig_path=f"tmp/{model_class.__name__}/e{epoch}.png",
+                fig_path=(
+                    f"tmp/{model_class.__name__}/e{epoch}.png"
+                    if epoch % 5 == 4
+                    else None
+                ),
                 log_path=f"log/train_{model_class.__name__}.csv",
                 log_settings={
                     "epoch": epoch,

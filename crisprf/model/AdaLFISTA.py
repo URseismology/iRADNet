@@ -51,9 +51,10 @@ class SRT_AdaLFISTA(LISTA_base):
     def forward(self, x0: torch.Tensor, y_freq: torch.Tensor):
         # x0: (nT, nQ)
         # y: (nFFT, nP)
-        x = torch.zeros_like(x0)
-        z = x
+        x = x0
+        z = x0
         t_k = 1
+        yield x0
 
         for k in range(self.n_layers):
             L1 = torch.einsum("bpq,bqq->bpq", self.radon3d, self.W1)

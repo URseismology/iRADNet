@@ -54,8 +54,9 @@ class SRT_LISTA(LISTA_base):
         # x0: (nT, nQ)
         # y: (nFFT, nP)
         x = x0
-        z = x
+        z = x0
         q_t = 1
+        yield x0
 
         # obtain x1 based on x0,
         # and so on x2, x3, ..., xT

@@ -10,7 +10,7 @@ FID_LOSS = nn.MSELoss(reduction="sum")
 REG_LOSS = nn.L1Loss(reduction="sum")
 
 
-def get_loss(pred: torch.Tensor, gt: torch.Tensor, lambd: float = 1.0) -> torch.Tensor:
+def get_loss(pred: torch.Tensor, gt: torch.Tensor, lambd: float = 0.5) -> torch.Tensor:
     l_fid = FID_LOSS(pred, gt)
     l_reg = REG_LOSS(pred, torch.zeros_like(pred))
     return l_fid + lambd * l_reg
