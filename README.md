@@ -1,14 +1,12 @@
-Pytorch implementation of FISTA/LISTA in the CRISP-RF [^1].
+# iRADNet: Deep Algorithm Unrolling for Seismic Migration
+
+Official Pytorch implementation of iRADNet (*inverse Radon transform Network*)  based on the CRISP-RF [^1].
 
 [^1]: https://doi.org/10.1093/gji/ggad447
 
-- Matlab-FISTA: [crisprf/base/sparse_inverse_radon_fista.m][Matlab-FISTA]
-- Python-FISTA: [crisprf/model/FISTA.py][Python-FISTA]
+## Introduction
 
-[Matlab-FISTA]: crisprf/base/sparse_inverse_radon_fista.m
-[Python-FISTA]: crisprf/model/FISTA.py
-
-With sparse Radon transform (SRT), we intend to solve the following optimization problem:
+With sparse Radon transform (SRT), we intend to approximate the following optimization problem:
 
 $$
 \def\y{\mathbf{y}}
@@ -19,39 +17,34 @@ $$
 \mathfrak{R}_{sp}(\y) = \argmin_{\x} \frac{1}{2}\norm{\fft^{-1}\radon \fft (\x) - \y}_2^2 + \lambda R(\x)
 $$
 
-where $\mathbf{y} \in \mathbb{R}^{T\times P}$ is receiver function image, $\mathbf{x} \in \mathbb{R}^{T\times Q}$ is sparse Radon transform; $T, P, Q$ are number of time samples, number of receiver functions, and number of Radon transforms, respectively. In synthetic data, $T=5000, P=38, Q=200$.
+where $\mathfrak{R}_{sp}(\mathbf{y})$ represents the sparse Radon transform
+of the seismic data (receiver function) $\mathbf{y}$ to give Radon
+model (sparse code) $\mathbf{x}$; $\mathcal{F}$ denotes the one-dimensional
+Fourier transform; $\mathbf{L}$ is the a linear phase shift operator in
+the frequency domain; $\lambda >0$ is a regularization parameter; and $R(\mathbf{x})$ is the sparsity-inducing regularization term, typically the $\ell_1$ norm or the $\ell_1$-$\ell_2$ norm.
 
-## SRT-FISTA/LISTA
+## SRT-FISTA/iRADNet
 
-We construct SRT-LISTA by unrolling the ISTA/FISTA iterations into a DL model. If we apply constraints to substitute learned structures with static ones (i.e., $\mathbf{W}_1=\mathbf{L}, \mathbf{W}_2=\mathbf{L}^*, {\theta}^{(k)} = \gamma\lambda$), it devolves into SRT-FISTA.
+We introduce iRADNet by unrolling the (F)ISTA iterations
+into a deep learning model (see Figure 1, plug-in structure
+being LISTA-CP, a variant of LISTA) to learn the mapping
+$\Phi: \mathbf{y}\mapsto\mathbf{x}$. The model consists of K layers, each analogous
+to one iteration in ISTA. Setting $\mathbf{W}_1=\mathbf{W}_2=\mathbf{L}$ and ${\theta}^{(k)} = \gamma\lambda$ reduces the network to SRT-FISTA.
 
 <div align="center">
-  <img src="fig/srt-fista-alg.png" width="62.4%" />
-  <img src="fig/srt-lista-unroll.png" width="35.1%" /> 
+  <img src="fig/SRT-FISTA.png" width="63%" />
+  <img src="fig/iRADNet.png" width="36%" /> 
 </div>
 
-## Speed Comparison
-
-||Matlab|Python|
-|:-:|:-:|:-:|
-|FISTA|1m2.467s|0m17.878s|
-
-## Logs
-
-Matlab-FISTA
+## Run
 
 ```sh
-$ time source crisprf/model/base/call.sh
-real    1m2.467s
-user    5m4.426s
-sys     0m22.592s
+python crisprf/job/run_lista.py --model SRT_LISTA_CP --snr 2
+python crisprf/job/run_fista.py --snr 2
 ```
 
-Python-FISTA
+## Cite this work
 
-```sh
-$ time python crisprf/model/FISTA.py
-real    0m17.878s
-user    0m15.676s
-sys     0m6.397s
+```bibtex
+TBD
 ```

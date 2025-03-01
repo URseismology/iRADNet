@@ -118,10 +118,6 @@ def plot_difference(
     model = LISTA_base.load_checkpoint(model_class)
     model.eval()
 
-    # fig = plot_radon2d(model.radon3d[1], model.W1[1])
-    # fig.savefig("tmp/w1_1.png")
-    # fig = plot_radon2d(model.radon3d[4096], model.W1[4096])
-    # fig.savefig("tmp/w1_4096.png")
     plot_outliers(model.radon3d, model.W1)
     print(model.__class__.__name__)
 
