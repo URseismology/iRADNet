@@ -1,5 +1,5 @@
 import torch
-from scipy.io import loadmat, savemat
+from scipy.io import loadmat
 
 from typing import TypedDict
 
@@ -61,6 +61,12 @@ class RFDataShape:
         assert sample["x"].shape == (nT, nQ)
         if sample["y_hat"] is not None:
             assert sample["y_hat"].shape == sample["y"].shape
+
+    def __repr__(self):
+        return f"RFDataShape(nT={self.nT}, nP={self.nP}, nQ={self.nQ}, nFFT={self.nFFT}, dT={self.dT})"
+
+    def __str__(self):
+        return repr(self)
 
 
 def retrieve_single_xy(

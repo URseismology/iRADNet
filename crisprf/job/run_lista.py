@@ -7,8 +7,8 @@ from crisprf.model import (
     SRT_LISTA,
     SRT_LISTA_CP,
     LISTA_base,
-    SRT_AdaLISTA,
     SRT_AdaLFISTA,
+    SRT_AdaLISTA,
     init_radon3d_mat,
     time2freq,
 )
@@ -45,7 +45,6 @@ def train_lista(
             x: torch.Tensor = batch["x"].squeeze(0).to(device)
             y: torch.Tensor = batch["y"].squeeze(0).to(device)
 
-            # (nT, nP) -> (nFFT, nP)
             y_freq = time2freq(y, shapes.nFFT)
 
             x0 = torch.zeros_like(x)
@@ -100,7 +99,7 @@ def eval_lista(
         eval_metrics(
             x_hat,
             sample["x"],
-            log_path=f"log/{model_class.__name__}.csv",
+            log_path=f"log/{model_class.__name__}.jsonl",
             log_settings={
                 "snr": snr,
                 "n_layers": model.n_layers,

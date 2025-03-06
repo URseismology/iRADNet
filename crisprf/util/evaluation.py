@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+import json
 import os
 from time import time_ns
 
@@ -37,14 +38,18 @@ def eval_metrics(
 
     if log_path is not None:
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
-        # does not exist then overwrite then add header
-        if not os.path.exists(log_path):
-            with open(log_path, "w") as f:
-                f.write("timestamp,settings,mse,nmse,nonzeros\n")
-
         with open(log_path, "a") as f:
-            f.write(
-                f'{time_ns()},"{log_settings}",{mse.item()},{nmse.item()},{nonzeros.item()}\n'
+            json.dump(
+                log_settings
+                | {
+                    "timestamp": time_ns(),
+                    "MSE": mse.item(),
+                    "NMSE": nmse.item(),
+                    "nonzeros": nonzeros.item(),
+                },
+                f,
+                sort_keys=True,
             )
+            f.write("\n")
 
     return mse.item(), nmse.item(), nonzeros.item()

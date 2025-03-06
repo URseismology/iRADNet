@@ -16,10 +16,7 @@ def plot_from_log(
     ax2: plt.Axes,
     snr: float = None,
 ):
-    model_name = os.path.basename(log_path).split(".")[0]
-    df = pd.read_csv(log_path)
-    df["settings"] = df["settings"].apply(ast.literal_eval)
-    df = df.join(pd.json_normalize(df["settings"])).drop(columns=["settings"])
+    df = pd.read_json(log_path, lines=True)
     if snr is not None:
         df = df[df["snr"] == snr]
     else:
@@ -30,10 +27,12 @@ def plot_from_log(
     df["timestamp"] = df["timestamp"] // 1_000_000
     df["timestamp"] = df["timestamp"]
     df["nonzeros"] = df["nonzeros"] / 2450 / 200 * 100
+
+    model_name = os.path.basename(log_path).split(".")[0]
     print(
         model_name,
         snr,
-        f'{df.tail(1)["nmse"].item():.4f}',
+        f'{df.tail(1)["NMSE"].item():.4f}',
         f'{df.tail(1)["nonzeros"].item():.2f}',
     )
     # get the first 10 rows
@@ -75,7 +74,7 @@ def plot_each_snr():
             [0, 20, 40, 60, 80, 100],
         )
 
-        for log_path in iglob("log/*.csv"):
+        for log_path in iglob("log/*.jsonl"):
             if log_path.startswith("log/train_"):
                 continue
             plot_from_log(log_path, ax, ax2, snr)
