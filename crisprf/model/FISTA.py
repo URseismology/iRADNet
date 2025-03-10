@@ -33,26 +33,33 @@ def fista(
     lambd: float,
     alpha: float = 1.0,
 ):
+    static_kwargs = dict(
+        radon3d=radon3d,
+        ilow=ilow,
+        ihigh=ihigh,
+    )
     with torch.no_grad():
         x = x0
         z = x0
         q_t = 1
-        step_size = alpha / cal_lipschitz(
-            radon3d=radon3d, nT=shapes.nT, ilow=ilow, ihigh=ihigh
-        )
+        step_size = alpha / cal_lipschitz(nT=shapes.nT, **static_kwargs)
 
         for _ in range(n_layers):
             # z update
             # y_hat = A(x)
+            x_freq = time2freq(z, shapes.nFFT)
             y_tilde_freq = radon3d_forward(
-                time2freq(z, shapes.nFFT),
-                radon3d=radon3d,
-                ilow=ilow,
-                ihigh=ihigh,
+                x_freq=x_freq,
+                out_y=torch.zeros_like(y_freq),
+                nFFT=shapes.nFFT,
+                **static_kwargs,
             )
             # x_tilde = F^-1 L*(y_tilde_freq - y_freq)
             x_tilde_freq = radon3d_forward_adjoint(
-                y_tilde_freq - y_freq, radon3d=radon3d, ilow=ilow, ihigh=ihigh
+                y_freq=y_tilde_freq - y_freq,
+                out_x=torch.zeros_like(x_freq),
+                nFFT=shapes.nFFT,
+                **static_kwargs,
             )
             x_tilde = freq2time(x_tilde_freq, shapes.nT)
             # threshold
@@ -64,7 +71,6 @@ def fista(
             z = x + (q_t - 1) / q_new * (x - x_prev)
             q_t = q_new
             yield x
-        # return m
 
 
 def get_x0(
@@ -82,9 +88,9 @@ def get_x0(
     x0_freq = torch.zeros((nFFT, nQ), device=y_freq.device, dtype=FREQ_DTYPE)
     for ifreq in range(ilow, ihigh):
         # (nP, nQ)
-        radon2d = radon3d[ifreq, :, :]
+        radon2d = radon3d[ifreq]
         # (nP, nQ).T @ (nP, ) -> (nQ, )
-        B = radon2d.T.conj() @ y_freq[ifreq, :].conj()
+        B = radon2d.T.conj() @ y_freq[ifreq].conj()
         # (nP, nQ).T @ (nP, nP) @ (nP, nQ) -> (nQ, nQ)
         A = radon2d.T.conj() @ radon2d
 
@@ -93,12 +99,12 @@ def get_x0(
             A + mu * torch.eye(nQ, dtype=FREQ_DTYPE, device=y_freq.device), B
         )
 
-        x0_freq[ifreq, :] = x_i.conj()
-        x0_freq[nFFT - ifreq, :] = x_i
+        x0_freq[ifreq] = x_i.conj()
+        x0_freq[nFFT - ifreq] = x_i
 
-    x0_freq[nFFT // 2, :] = 0
-    # (nFFT, nQ) -> (nT, nP)
-    return torch.real(torch.fft.ifft(x0_freq, dim=0)[:nT, :])
+    x0_freq[nFFT // 2] = 0
+
+    return freq2time(x0_freq, nT=nT)
 
 
 def sparse_inverse_radon_fista(
@@ -136,7 +142,7 @@ def sparse_inverse_radon_fista(
 
     for sample in dataset:
         # init signal in frequency domain
-        y_freq: torch.Tensor = torch.fft.fft(sample["y_noise"], nFFT, dim=0)
+        y_freq: torch.Tensor = time2freq(sample["y_noise"], nFFT)
 
         # init radon transform matrix
         radon3d = init_radon3d_mat(
@@ -161,16 +167,20 @@ def sparse_inverse_radon_fista(
             shapes=shapes,
         )
 
-        eval_metrics(
-            pred=x0,
-            gt=sample["x"],
-            log_path="log/fista.csv",
+        metrics_out_kwargs = dict(
+            log_path="log/fista.jsonl",
             log_settings={
                 "snr": snr,
                 "n_layers": n_layers,
                 "lambd": alphas[0],
                 "mu": alphas[1],
             },
+        )
+
+        eval_metrics(
+            pred=x0,
+            gt=sample["x"],
+            **metrics_out_kwargs,
             **sample,
         )
 
@@ -188,13 +198,7 @@ def sparse_inverse_radon_fista(
             eval_metrics(
                 pred=x_hat,
                 gt=sample["x"],
-                log_path="log/fista.csv",
-                log_settings={
-                    "snr": snr,
-                    "n_layers": n_layers,
-                    "lambd": alphas[0],
-                    "mu": alphas[1],
-                },
+                **metrics_out_kwargs,
                 **sample,
             )
 

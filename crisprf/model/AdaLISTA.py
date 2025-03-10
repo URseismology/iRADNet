@@ -55,17 +55,25 @@ class SRT_AdaLISTA(LISTA_base):
         yield x0
 
         for k in range(self.n_layers):
-            L1 = torch.einsum("bpq,bqq->bpq", self.radon3d, self.W1)
-            L2 = torch.einsum("bpq,bpp->bpq", self.radon3d, self.W2)
+            L1 = torch.einsum("...fpq,fqq->...fpq", self.radon3d, self.W1)
+            L2 = torch.einsum("...fpq,fpp->...fpq", self.radon3d, self.W2)
+            x_freq = time2freq(x, nFFT=self.shapes.nFFT)
 
             y_tilde_freq = radon3d_forward(
-                x_freq=time2freq(x, self.shapes.nFFT),
+                x_freq=x_freq,
                 radon3d=L1,
                 ilow=self.ilow,
                 ihigh=self.ihigh,
+                out_y=torch.zeros_like(y_freq),
+                nFFT=self.shapes.nFFT,
             )
             x_tilde_freq = radon3d_forward_adjoint(
-                y_tilde_freq - y_freq, radon3d=L2, ilow=self.ilow, ihigh=self.ihigh
+                y_freq=y_tilde_freq - y_freq,
+                radon3d=L2,
+                ilow=self.ilow,
+                ihigh=self.ihigh,
+                out_x=torch.zeros_like(x_freq),
+                nFFT=self.shapes.nFFT,
             )
             x_tilde = freq2time(x_tilde_freq, nT=self.shapes.nT)
             x = shrink_soft(

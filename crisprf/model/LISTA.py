@@ -51,8 +51,6 @@ class SRT_LISTA(LISTA_base):
     def forward(
         self, x0: torch.Tensor, y_freq: torch.Tensor
     ) -> Generator[torch.Tensor, None, None]:
-        # x0: (nT, nQ)
-        # y: (nFFT, nP)
         x = x0
         z = x0
         q_t = 1
@@ -61,19 +59,31 @@ class SRT_LISTA(LISTA_base):
         # obtain x1 based on x0,
         # and so on x2, x3, ..., xT
         for k in range(self.n_layers):
-            # y_tilde = A(x)
+            x_freq = time2freq(z, self.shapes.nFFT)
             y_tilde_freq = radon3d_forward(
-                x_freq=time2freq(z, self.shapes.nFFT),
+                x_freq=x_freq,
                 radon3d=self.Wx,
                 ilow=self.ilow,
                 ihigh=self.ihigh,
+                out_y=torch.zeros_like(y_freq),
+                nFFT=self.shapes.nFFT,
             )
             # x_tilde = F^-1 L*(y_tilde - y_freq)
             x_tilde_freq = radon3d_forward_adjoint(
-                y_tilde_freq, radon3d=self.Wx, ilow=self.ilow, ihigh=self.ihigh
+                y_tilde_freq,
+                radon3d=self.Wx,
+                ilow=self.ilow,
+                ihigh=self.ihigh,
+                out_x=torch.zeros_like(x_freq),
+                nFFT=self.shapes.nFFT,
             )
             x_y_tilde_freq = radon3d_forward_adjoint(
-                y_freq, radon3d=self.Wy, ilow=self.ilow, ihigh=self.ihigh
+                y_freq,
+                radon3d=self.Wy,
+                ilow=self.ilow,
+                ihigh=self.ihigh,
+                out_x=torch.zeros_like(x_freq),
+                nFFT=self.shapes.nFFT,
             )
             x_tilde = freq2time(x_tilde_freq - x_y_tilde_freq, nT=self.shapes.nT)
 

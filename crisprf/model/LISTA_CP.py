@@ -62,15 +62,23 @@ class SRT_LISTA_CP(LISTA_base):
         # and so on x2, x3, ..., xT
         for k in range(self.n_layers):
             # y_tilde = A(x)
+            x_freq = time2freq(z, self.shapes.nFFT)
             y_tilde_freq = radon3d_forward(
-                x_freq=time2freq(z, self.shapes.nFFT),
+                x_freq=x_freq,
                 radon3d=self.W1,
                 ilow=self.ilow,
                 ihigh=self.ihigh,
+                out_y=torch.zeros_like(y_freq),
+                nFFT=self.shapes.nFFT,
             )
             # x_tilde = F^-1 L*(y_tilde - y_freq)
             x_tilde_freq = radon3d_forward_adjoint(
-                y_tilde_freq - y_freq, radon3d=self.W2, ilow=self.ilow, ihigh=self.ihigh
+                y_tilde_freq - y_freq,
+                radon3d=self.W2,
+                ilow=self.ilow,
+                ihigh=self.ihigh,
+                out_x=torch.zeros_like(x_freq),
+                nFFT=self.shapes.nFFT,
             )
             x_tilde = freq2time(x_tilde_freq, nT=self.shapes.nT)
 

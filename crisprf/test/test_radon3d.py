@@ -67,7 +67,14 @@ class TestRadon3d:
 
     def test_radon3d_forward(self):
         nffthalf = self.shapes.nFFT // 2
-        _y1_freq = radon3d_forward(self.x0_freq, self.radon3d, 1, nffthalf)
+        _y1_freq = radon3d_forward(
+            self.x0_freq,
+            self.radon3d,
+            1,
+            nffthalf,
+            out_y=torch.zeros_like(self.y1_freq),
+            nFFT=self.shapes.nFFT,
+        )
         assert _y1_freq.dtype == FREQ_DTYPE
 
         line_of_zeros = torch.zeros_like(_y1_freq[0])
@@ -82,7 +89,12 @@ class TestRadon3d:
 
     def test_radon3d_adjoint(self):
         _x1_freq = radon3d_forward_adjoint(
-            self.y1_freq, self.radon3d, 1, self.shapes.nFFT // 2
+            self.y1_freq,
+            self.radon3d,
+            1,
+            self.shapes.nFFT // 2,
+            out_x=torch.zeros_like(self.x0_freq),
+            nFFT=self.shapes.nFFT,
         )
         assert _x1_freq.dtype == FREQ_DTYPE
 

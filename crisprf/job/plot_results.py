@@ -1,11 +1,11 @@
-from glob import iglob
+import numpy as np
+import pandas as pd
+
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pandas as pd
-import os
-import ast
-import numpy as np
 
+import os
+from glob import iglob
 
 os.chdir("/home/wmeng/crisprf")
 
