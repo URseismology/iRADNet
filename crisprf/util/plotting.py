@@ -1,8 +1,7 @@
 import torch
 
-import numpy as np
-
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 from mpl_toolkits.mplot3d import Axes3D
 

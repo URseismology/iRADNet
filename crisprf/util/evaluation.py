@@ -24,11 +24,7 @@ def eval_metrics(
     log_path: str = None,
     log_settings: dict = None,
     **kwargs,
-) -> tuple[float, float, int]:
-    mse = FID_LOSS(pred, gt)
-    mse_0 = FID_LOSS(gt, torch.zeros_like(gt))
-    nmse = mse / mse_0
-    nonzeros = torch.count_nonzero(pred)
+) -> None:
 
     if fig_path is not None:
         plot_sample(
@@ -37,6 +33,10 @@ def eval_metrics(
         print(f"fig saved to {fig_path}")
 
     if log_path is not None:
+        mse = FID_LOSS(pred, gt)
+        mse_0 = FID_LOSS(gt, torch.zeros_like(gt))
+        nmse = mse / mse_0
+        nonzeros = torch.count_nonzero(pred)
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
         with open(log_path, "a") as f:
             json.dump(
@@ -51,5 +51,3 @@ def eval_metrics(
                 sort_keys=True,
             )
             f.write("\n")
-
-    return mse.item(), nmse.item(), nonzeros.item()

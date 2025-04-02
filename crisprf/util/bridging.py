@@ -1,6 +1,8 @@
 import torch
 from scipy.io import loadmat
 
+import numpy as np
+
 from typing import TypedDict
 
 from .constants import AUTO_DEVICE, TIME_DTYPE
@@ -37,10 +39,19 @@ class RFDataShape:
     def from_sample(
         y: torch.Tensor, q: torch.Tensor, t: torch.Tensor, **_
     ) -> "RFDataShape":
-        nT, nP = y.shape
-        nQ = q.numel()
-        nFFT = 2 * _nextpow2(nT)
+        nT = t.numel()
         dT = (t[1] - t[0]).item()
+
+        nFFT = 2 * _nextpow2(nT)
+        nQ = q.numel()
+
+        if y.shape[0] == nT:
+            nP = y.shape[1]
+        elif y.shape[1] == nT:
+            nP = y.shape[0]
+        else:
+            raise ValueError(f"nT {nT} not in y.shape {y.shape}")
+
         return RFDataShape(nT=nT, nP=nP, nQ=nQ, nFFT=nFFT, dT=dT)
 
     @staticmethod
@@ -70,32 +81,50 @@ class RFDataShape:
 
 
 def retrieve_single_xy(
-    path: str = "data/sample.mat", device: torch.device = AUTO_DEVICE
+    *paths: str, device: torch.device = AUTO_DEVICE
 ) -> RFData:
     # key translations, for 1d data and 2d data
-    v1d_translation = {
+    param_key_translate = {
         "rayP": "rayP",
         "taus": "t",  # time dimension
+        "time": "t",
         "qs": "q",
     }
-    v2d_translation = {
-        "Min": "x",  # sparse codes
+    xy_key_translate = {
         "tx": "y",  # signal
+        "radRF": "y",
         "tx_filt": "y_hat",  # signal after filtering
-    }
-    data = loadmat(path)
-    nT = data["taus"].size
 
-    return {
+        "Min": "x",  # sparse codes
+        "best_m_out": "x",
+    }
+
+    # load data from all paths as a single datapoint
+    # warning: same key may be overwritten, last one wins
+    # p1 contains {1: 1}, p2 contains {1: 2} -> {1: 2}
+    data = {k: v for path in paths for k, v in loadmat(path).items()}
+    if 'bin' in data:
+        assert data["bin"].shape[-1] == 2
+        data["rayP"] = data["bin"][:, 1]
+        data["qs"] = np.linspace(-3000, 3000, 400)
+
+    param = {
         k2: torch.tensor(data[k1], device=device, dtype=TIME_DTYPE).squeeze()
-        for k1, k2 in v1d_translation.items()
-    } | {
-        # (.., nT) -> (nT, ..)
+        for k1, k2 in param_key_translate.items()
+        if k1 in data
+    }
+    nT = param["t"].numel()
+
+    # (.., nT) -> (nT, ..)
+    xy = {
         k2: (
             torch.tensor(data[k1], device=device, dtype=TIME_DTYPE)
             if data[k1].shape[0] == nT
             else torch.tensor(data[k1], device=device, dtype=TIME_DTYPE).T
         )
-        for k1, k2 in v2d_translation.items()
+        for k1, k2 in xy_key_translate.items()
         if k1 in data
     }
+
+    # join two dict together -> a single datapoint
+    return param | xy

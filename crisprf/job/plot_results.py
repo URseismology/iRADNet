@@ -1,13 +1,10 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
-import matplotlib.pyplot as plt
 import seaborn as sns
 
 import os
 from glob import iglob
-
-os.chdir("/home/wmeng/crisprf")
 
 
 def plot_from_log(
