@@ -73,7 +73,9 @@ class RFDataShape:
         if sample["y_hat"] is not None:
             assert sample["y_hat"].shape == sample["y"].shape
 
-    def get_freq_bounds(self, freq_bounds: tuple[float, float] | None) -> tuple[int, int]:
+    def get_freq_bounds(
+        self, freq_bounds: tuple[float, float] | None
+    ) -> tuple[int, int]:
         # determine a [ilow, ihigh) frequency range, bounded by
         # [1, nFFT // 2) <-> (nFFT // 2, nFFT - 1] such that it's symmetric
         # e.g. [1, 32) <-> (32, 63], so ilow = 1, ihigh = 32
@@ -91,9 +93,7 @@ class RFDataShape:
         return repr(self)
 
 
-def retrieve_single_xy(
-    *paths: str, device: torch.device = AUTO_DEVICE
-) -> RFData:
+def retrieve_single_xy(*paths: str, device: torch.device = AUTO_DEVICE) -> RFData:
     # key translations, for 1d data and 2d data
     param_key_translate = {
         "rayP": "rayP",
@@ -105,7 +105,6 @@ def retrieve_single_xy(
         "tx": "y",  # signal
         "radRF": "y",
         "tx_filt": "y_hat",  # signal after filtering
-
         "Min": "x",  # sparse codes
         "best_m_out": "x",
     }
@@ -114,7 +113,7 @@ def retrieve_single_xy(
     # warning: same key may be overwritten, last one wins
     # p1 contains {1: 1}, p2 contains {1: 2} -> {1: 2}
     data = {k: v for path in paths for k, v in loadmat(path).items()}
-    if 'bin' in data:
+    if "bin" in data:
         assert data["bin"].shape[-1] == 2
         data["rayP"] = data["bin"][:, 1]
         data["qs"] = np.linspace(-3000, 3000, 400)

@@ -18,11 +18,13 @@ class SRTDataset(Dataset):
         device: torch.device = AUTO_DEVICE,
     ):
         super().__init__()
-        if re_path.endswith('.json'):
+        if re_path.endswith(".json"):
             with open(re_path) as f:
                 # metadata is a {size: [list of station names]} dict
                 metadata = json.load(f)["(1201, 500)"]
-                self.paths = [f"data/gt/*/{station_name}_*.mat" for station_name in metadata]
+                self.paths = [
+                    f"data/gt/*/{station_name}_*.mat" for station_name in metadata
+                ]
         else:
             self.paths = glob(re_path)
         self.device = device

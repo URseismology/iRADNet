@@ -8,8 +8,10 @@ from crisprf.util import AUTO_DEVICE, SRTDataset, eval_metrics
 
 def run_fista(args: argparse.Namespace):
     dataset = SRTDataset(
-        # 'data/gt/meta.json', 
-        snr=args.snr, device=args.device)
+        # 'data/gt/meta.json',
+        snr=args.snr,
+        device=args.device,
+    )
     shapes = dataset.shapes
 
     _saved_first = False
