@@ -108,99 +108,64 @@ def get_x0(
 
 
 def sparse_inverse_radon_fista(
+    sample: RFData,
+    shapes: RFDataShape,
     alphas: tuple[float, float],
-    snr: float | None = None,
     n_layers: int = 10,
     freq_bounds: tuple[float, float] = None,
-    device: torch.device = AUTO_DEVICE,
-) -> Generator[RFData, None, None]:
+) -> Generator[torch.Tensor, None, None]:
     """
     sparse inverse radon transform with FISTA for SRTFISTA reconstruction
 
     Parameters
     ----------
+    sample : RFData
+        sample data containing y, q, rayP, t
+    shapes : RFDataShape
+        shapes of the data
     alphas : tuple[float, float]
         regularization parameter for lambda and mu
-    snr : float, optional
-        signal to noise ratio, :math:`inf` if None, by default None
     n_layers : int
         max number of iterations
     freq_bounds : tuple[float, float]
         freq. low cut-off and high cut-off
-    device : torch.device, optional
-        device to run the computation, by default AUTO_DEVICE
 
     Returns
     -------
-    torch.Tensor
-        reconstructed radon image
+    Generator[torch.Tensor, None, None]
+        x_hat :math:`x_{k}` for k \in [0, n_layers]
     """
-    dataset = SRTDataset(snr=snr, device=device)
-    shapes = dataset.shapes
     nFFT = shapes.nFFT
-    dT = shapes.dT
 
-    for sample in dataset:
-        # init signal in frequency domain
-        y_freq: torch.Tensor = time2freq(sample["y_noise"], nFFT)
+    # init signal in frequency domain
+    y_freq: torch.Tensor = time2freq(sample["y_noise"], nFFT)
 
-        # init radon transform matrix
-        radon3d = init_radon3d_mat(
-            q=sample["q"], rayP=sample["rayP"], shapes=shapes, device=device
-        )
+    # init radon transform matrix
+    radon3d = init_radon3d_mat(
+        q=sample["q"], rayP=sample["rayP"], shapes=shapes, device=y_freq.device
+    )
 
-        # determine a [ilow, ihigh) frequency range, bounded by
-        # [1, nFFT // 2) <-> (nFFT // 2, nFFT - 1] such that it's symmetric
-        # e.g. [1, 32) <-> (32, 63], so ilow = 1, ihigh = 32
-        if freq_bounds is not None:
-            ilow = max(int(freq_bounds[0] * dT * nFFT), 1)
-            ihigh = min(int(freq_bounds[1] * dT * nFFT), nFFT // 2)
-        else:
-            ilow, ihigh = 1, nFFT // 2
+    ilow, ihigh = shapes.get_freq_bounds(freq_bounds)
 
-        x0 = get_x0(
-            y_freq=y_freq,
-            radon3d=radon3d,
-            ilow=ilow,
-            ihigh=ihigh,
-            mu=alphas[1],
-            shapes=shapes,
-        )
+    x0 = get_x0(
+        y_freq=y_freq,
+        radon3d=radon3d,
+        ilow=ilow,
+        ihigh=ihigh,
+        mu=alphas[1],
+        shapes=shapes,
+    )
+    yield x0
 
-        metrics_out_kwargs = dict(
-            log_path="log/fista.jsonl",
-            log_settings={
-                "snr": snr,
-                "n_layers": n_layers,
-                "lambd": alphas[0],
-                "mu": alphas[1],
-            },
-        )
-
-        eval_metrics(
-            pred=x0,
-            gt=sample["x"],
-            **metrics_out_kwargs,
-            **sample,
-        )
-
-        # run FISTA from x(0) -> x(K)
-        for x_hat in fista(
-            x0=x0,
-            y_freq=y_freq,
-            radon3d=radon3d,
-            shapes=shapes,
-            ilow=ilow,
-            ihigh=ihigh,
-            n_layers=n_layers,
-            lambd=alphas[0],
-        ):
-            eval_metrics(
-                pred=x_hat,
-                gt=sample["x"],
-                **metrics_out_kwargs,
-                **sample,
-            )
-
-        # yield final x(K) of each sample
-        yield sample | {"x_hat": x_hat}
+    # run FISTA from x(0) -> x(K)
+    for x_hat in fista(
+        x0=x0,
+        y_freq=y_freq,
+        radon3d=radon3d,
+        shapes=shapes,
+        ilow=ilow,
+        ihigh=ihigh,
+        n_layers=n_layers,
+        lambd=alphas[0],
+    ):
+        yield x_hat

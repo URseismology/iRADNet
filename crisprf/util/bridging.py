@@ -73,6 +73,17 @@ class RFDataShape:
         if sample["y_hat"] is not None:
             assert sample["y_hat"].shape == sample["y"].shape
 
+    def get_freq_bounds(self, freq_bounds: tuple[float, float] | None) -> tuple[int, int]:
+        # determine a [ilow, ihigh) frequency range, bounded by
+        # [1, nFFT // 2) <-> (nFFT // 2, nFFT - 1] such that it's symmetric
+        # e.g. [1, 32) <-> (32, 63], so ilow = 1, ihigh = 32
+        if freq_bounds is None:
+            return 1, self.nFFT // 2
+
+        ilow = max(int(freq_bounds[0] * self.dT * self.nFFT), 1)
+        ihigh = min(int(freq_bounds[1] * self.dT * self.nFFT), self.nFFT // 2)
+        return ilow, ihigh
+
     def __repr__(self):
         return f"RFDataShape(nT={self.nT}, nP={self.nP}, nQ={self.nQ}, nFFT={self.nFFT}, dT={self.dT})"
 
