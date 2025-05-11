@@ -45,7 +45,7 @@ class SRT_LISTA_CP(LISTA_base):
 
         # each eta/gamma for each iteration; we have `n_layers`
         self.lip = cal_lipschitz(
-            radon3d=radon3d, nT=shapes.nT, ilow=self.ilow, ihigh=self.ihigh
+            radon3d=radon3d, ilow=self.ilow, ihigh=self.ihigh, shapes=shapes
         )
 
     def forward(

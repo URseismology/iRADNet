@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import seaborn as sns
 
@@ -18,26 +17,39 @@ def plot_from_log(
         df = df[df["snr"] == snr]
     else:
         df = df[df["snr"].isna()]
+    
+    # get last record of x(0)-x(10) 11 values
     df = df.tail(11)
+    # get time interval of x(n)-x(0), and convert ns to ms
     df["timestamp"] = df["timestamp"] - df["timestamp"].min()
-    df = df.tail(10)
     df["timestamp"] = df["timestamp"] // 1_000_000
-    df["timestamp"] = df["timestamp"]
-    df["nonzeros"] = df["nonzeros"] / 2450 / 200 * 100
+    # we only need x(1)-x(10) time elapsed, because x(0) is all-zero, not useful
+    df = df.tail(10)
 
-    model_name = os.path.basename(log_path).split(".")[0]
-    print(
-        model_name,
-        snr,
-        f'{df.tail(1)["NMSE"].item():.4f}',
-        f'{df.tail(1)["nonzeros"].item():.2f}',
-    )
-    # get the first 10 rows
+    # convert to percentage
+    df["density"] = df["density"] * 100
+
+    # traslate to model name in the paper
+    filename = os.path.basename(log_path).split(".")[0]
+    PATH_TO_MODEL_TRANSLATION = {
+        'FISTA': "SRT-FISTA",
+        'SRT_LISTA': 'iRADNet (LISTA)',
+        'SRT_LISTA_CP': 'iRADNet (LISTA-CP)',
+        'SRT_AdaLISTA': 'iRADNet (AdaLISTA)',
+        'SRT_AdaLFISTA': 'iRADNet (AdaLFISTA)',
+    }
+    model_name = PATH_TO_MODEL_TRANSLATION.get(filename, filename)
+    # print(
+    #     model_name,
+    #     snr,
+    #     f'{df.tail(1)["NMSE"].item():.4f}',
+    #     f'{df.tail(1)["density"].item():.2f}',
+    # )
 
     ax = sns.lineplot(
         data=df,
         x="timestamp",
-        y="nmse",
+        y="NMSE",
         label=model_name,
         marker="o",
         ax=ax,
@@ -46,7 +58,7 @@ def plot_from_log(
     ax2 = sns.lineplot(
         data=df,
         x="timestamp",
-        y="nonzeros",
+        y="density",
         linestyle=":",
         marker="^",
         ax=ax2,
@@ -62,7 +74,7 @@ def plot_each_snr():
         ax2.set_ylim(0, 100)
         ax.set_xlabel("Time (ms)")
         ax.set_ylabel("NMSE")
-        ax2.set_ylabel("Non-Zeros (%)")
+        ax2.set_ylabel("Density (%)")
         ax.grid()
         ax.set_yticks(
             [0.6, 0.7, 0.8, 0.9, 1, 1.1],

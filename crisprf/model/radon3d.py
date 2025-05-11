@@ -78,6 +78,7 @@ def radon3d_forward(
     """
     y_freq = out_y
     assert y_freq.dtype == FREQ_DTYPE
+    assert ihigh < radon3d.shape[-3]
 
     # (nP, nQ) @ (nQ,) = (nP,)
     y_slice = torch.einsum(
@@ -146,11 +147,15 @@ def time2freq(inp: torch.Tensor, nFFT: int) -> torch.Tensor:
     return fft.fft(torch.real(inp), n=nFFT, dim=0)
 
 
-def cal_lipschitz(radon3d: torch.Tensor, nT: int, ilow: int, ihigh: int):
+def cal_lipschitz(radon3d: torch.Tensor, ilow: int, ihigh: int, shapes: RFDataShape):
     # estimate the max eigenvalue of A* A
-    nFFT, nP, nQ = radon3d.shape
+    nFFT = shapes.nFFT
+    nP = shapes.nP
+    nQ = shapes.nQ
+    nT = shapes.nT
     x = torch.rand((nT, nQ), device=radon3d.device, dtype=TIME_DTYPE)
     x_freq = time2freq(x, nFFT)
+    assert x_freq.shape == (nFFT, nQ)
     y_freq = torch.zeros((nFFT, nP), device=radon3d.device, dtype=FREQ_DTYPE)
 
     static_kwargs = dict(

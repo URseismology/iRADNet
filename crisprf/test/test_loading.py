@@ -19,5 +19,12 @@ def test_srt_dataset_cuda():
     assert sample["x"].get_device() >= 0
 
 
+def test_srt_dataset_json():
+    dataset = SRTDataset("data/gt/meta.json")
+    for sample in dataset:
+        RFDataShape.verify(sample)
+
+
 if __name__ == "__main__":
-    test_srt_dataset()
+    # test_srt_dataset()
+    dataset = SRTDataset("data/gt/meta.json")

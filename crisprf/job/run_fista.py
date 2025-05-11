@@ -15,7 +15,7 @@ def run_fista(args: argparse.Namespace):
     shapes = dataset.shapes
 
     _saved_first = False
-    for sample in tqdm(dataset):
+    for sample in tqdm(dataset, desc="FISTA/datapoints"):
         for x_hat in sparse_inverse_radon_fista(
             sample=sample,
             shapes=shapes,
@@ -24,20 +24,19 @@ def run_fista(args: argparse.Namespace):
         ):
             eval_metrics(
                 pred=x_hat,
-                gt=x_hat,
-                # log_path="log/fista.jsonl",
-                # log_settings={
-                #     "snr": args.snr,
-                #     "n_layers": args.n_layers,
-                #     "lambd": args.lambd,
-                #     "mu": args.mu,
-                # },
+                gt=sample["x"],
+                log_path="log/FISTA.jsonl",
+                log_settings={
+                    "snr": args.snr,
+                    "n_layers": args.n_layers,
+                    "lambd": args.lambd,
+                    "mu": args.mu,
+                },
                 # save the first sample as a reference
-                fig_path=None if _saved_first else f"fig/fista_snr={args.snr}.png",
+                # fig_path=None if _saved_first else f"fig/fista_snr={args.snr}.png",
                 **sample,
             )
             _saved_first = True
-        break
 
 
 def parse_args():

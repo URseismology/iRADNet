@@ -1,6 +1,8 @@
 import torch
 from torch.utils.data import DataLoader
 
+from tqdm import trange
+
 import argparse
 
 from crisprf.model import (
@@ -38,7 +40,7 @@ def train_lista(
         device=device,
     )
     optimizer = torch.optim.Adam(model.parameters(), lr=5e-3)
-    for epoch in range(20):
+    for epoch in trange(20):
         for batch in train_loader:
             optimizer.zero_grad()
 
@@ -55,23 +57,20 @@ def train_lista(
             loss.backward()
             optimizer.step()
 
-        print(
-            epoch,
-            eval_metrics(
-                x_hat,
-                x,
-                fig_path=(
-                    f"tmp/{model_class.__name__}/e{epoch}.png"
-                    if epoch % 5 == 4
-                    else None
-                ),
-                log_path=f"log/train_{model_class.__name__}.csv",
-                log_settings={
-                    "epoch": epoch,
-                    "loss": loss.item(),
-                },
-                **sample,
-            ),
+        eval_metrics(
+            x_hat,
+            x,
+            # fig_path=(
+            #     f"tmp/{model_class.__name__}/e{epoch}.png"
+            #     if epoch % 5 == 4
+            #     else None
+            # ),
+            log_path=f"log/train_{model_class.__name__}.jsonl",
+            log_settings={
+                "epoch": epoch,
+                "loss": loss.item(),
+            },
+            **sample,
         )
 
     model.save_checkpoint()
@@ -84,16 +83,17 @@ def eval_lista(
     device: torch.device = torch.device("cuda:0"),
     fig_path: str = None,
 ):
-    model = LISTA_base.load_checkpoint(model_class)
-    model.eval()
-    model.to(device)
-
     dataset = SRTDataset(snr=snr, device=device)
     sample = dataset[0]
     shapes = dataset.shapes
+    radon3d = init_radon3d_mat(sample["q"], sample["rayP"], shapes, N=2, device=device)
 
     y_freq = time2freq(sample["y_noise"], shapes.nFFT)
     x0 = torch.zeros_like(sample["x"])
+
+    model = LISTA_base.load_checkpoint(model_class, radon3d)
+    model.eval()
+    model.to(device)
 
     for x_hat in model(x0, y_freq):
         eval_metrics(
@@ -106,7 +106,7 @@ def eval_lista(
             },
             **sample,
         )
-    print(eval_metrics(x_hat, sample["x"], fig_path=fig_path, **sample))
+    eval_metrics(x_hat, sample["x"], fig_path=fig_path, **sample)
 
     return model
 
@@ -125,6 +125,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default="SRT_LISTA_CP")
     parser.add_argument("--snr", type=float, default=None)
+    parser.add_argument("--train", action=argparse.BooleanOptionalAction)
     parser.add_argument("--eval", action=argparse.BooleanOptionalAction)
     parser.add_argument("--device", type=str, default="cuda:0")
     args = parser.parse_args()
@@ -144,14 +145,22 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError
 
-    if args.eval is None or not args.eval:
+    if args.train is None and args.eval is None:
+        print("Specify at least one task, `--train', `--eval' or both")
+        exit(1)
+
+    if args.train:
         train_lista(
             model_class=model_class,
             device=args.device,
         )
-    eval_lista(
-        model_class=model_class,
-        snr=args.snr,
-        device=args.device,
-        fig_path=f"fig/{args.model}_snr={args.snr}.png",
-    )
+
+    if args.eval:
+        eval_lista(
+            model_class=model_class,
+            snr=args.snr,
+            device=args.device,
+            # fig_path=f"fig/{args.model}_snr={args.snr}.png",
+        )
+
+    exit(0)

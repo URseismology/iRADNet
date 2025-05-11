@@ -25,6 +25,22 @@ def eval_metrics(
     log_settings: dict = None,
     **kwargs,
 ) -> None:
+    """
+    Compute metrics for evaluation.
+
+    Parameters
+    ----------
+    pred : torch.Tensor
+        prediction x_hat
+    gt : torch.Tensor
+        ground truth x
+    fig_path : str, optional
+        path of image file, to save a pair-wise figure for x and x_hat, by default None
+    log_path : str, optional
+        path of *.jsonl file, to append metric logs, by default None
+    log_settings : dict, optional
+        experiment setting to dump into log_path alongside metrics, by default None
+    """
 
     if fig_path is not None:
         plot_sample(
@@ -36,18 +52,16 @@ def eval_metrics(
         mse = FID_LOSS(pred, gt)
         mse_0 = FID_LOSS(gt, torch.zeros_like(gt))
         nmse = mse / mse_0
-        nonzeros = torch.count_nonzero(pred)
+        density = torch.count_nonzero(pred) / pred.numel()
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
+
+        log_content = log_settings | {
+            "timestamp": time_ns(),
+            "MSE": mse.item(),
+            "NMSE": nmse.item(),
+            "density": density.item(),
+        }
         with open(log_path, "a") as f:
-            json.dump(
-                log_settings
-                | {
-                    "timestamp": time_ns(),
-                    "MSE": mse.item(),
-                    "NMSE": nmse.item(),
-                    "nonzeros": nonzeros.item(),
-                },
-                f,
-                sort_keys=True,
-            )
+            json.dump(log_content, f, sort_keys=True)
             f.write("\n")
+        return log_content

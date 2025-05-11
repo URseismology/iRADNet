@@ -45,7 +45,7 @@ class SRT_AdaLISTA(LISTA_base):
         ).to(device)
 
         self.lip = cal_lipschitz(
-            radon3d=radon3d, nT=shapes.nT, ilow=self.ilow, ihigh=self.ihigh
+            radon3d=radon3d, ilow=self.ilow, ihigh=self.ihigh, shapes=shapes
         )
 
     def forward(self, x0: torch.Tensor, y_freq: torch.Tensor):

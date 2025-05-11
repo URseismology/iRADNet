@@ -191,7 +191,12 @@ def plot_x(data: torch.Tensor, ax: plt.Axes, t: torch.Tensor, q: torch.Tensor, *
         yticklabels=list(map(lambda x: f"{x:.0f}", q.detach().cpu().numpy())),
         center=0,
         cmap="seismic",
-        cbar_kws={"orientation": "horizontal", "aspect": 40, "pad": 0.05},
+        cbar_kws={
+            "orientation": "horizontal",
+            "aspect": 40,
+            "pad": 0.05,
+            "location": "top",
+        },
     )
     ax.set_yticks(
         np.linspace(0, q.numel(), 5),

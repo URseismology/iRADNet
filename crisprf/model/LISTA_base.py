@@ -86,7 +86,6 @@ class LISTA_base(nn.Module):
         path = path or f"cache/{self.__class__.__name__}.pt"
         torch.save(
             {
-                "radon3d": self.radon3d,
                 "n_layers": self.n_layers,
                 "state_dict": self.state_dict(),
                 "shapes": self.shapes,
@@ -98,11 +97,13 @@ class LISTA_base(nn.Module):
         )
 
     @staticmethod
-    def load_checkpoint(model_class: "LISTA_base", path: str = None) -> "LISTA_base":
+    def load_checkpoint(
+        model_class: "LISTA_base", radon3d: torch.Tensor, path: str = None
+    ) -> "LISTA_base":
         path = path or f"cache/{model_class.__name__}.pt"
         checkpoint = torch.load(path)
         model: LISTA_base = model_class(
-            radon3d=checkpoint["radon3d"],
+            radon3d=radon3d,
             n_layers=checkpoint["n_layers"],
             shapes=checkpoint["shapes"],
             shared_theta=checkpoint["shared_theta"],

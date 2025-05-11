@@ -42,7 +42,7 @@ def fista(
         x = x0
         z = x0
         q_t = 1
-        step_size = alpha / cal_lipschitz(nT=shapes.nT, **static_kwargs)
+        step_size = alpha / cal_lipschitz(shapes=shapes, **static_kwargs)
 
         for _ in range(n_layers):
             # z update
