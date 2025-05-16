@@ -1,6 +1,5 @@
 *
 
 !.gitignore
-!srt-*.png
-!SRT-*.png
+!SRT_FISTA.png
 !iRADNet*
