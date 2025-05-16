@@ -32,13 +32,30 @@ def plot_from_log(
     # traslate to model name in the paper
     filename = os.path.basename(log_path).split(".")[0]
     PATH_TO_MODEL_TRANSLATION = {
-        'FISTA': "SRT-FISTA",
-        'SRT_LISTA': 'iRADNet (LISTA)',
-        'SRT_LISTA_CP': 'iRADNet (LISTA-CP)',
-        'SRT_AdaLISTA': 'iRADNet (AdaLISTA)',
-        'SRT_AdaLFISTA': 'iRADNet (AdaLFISTA)',
+        "FISTA": "SRT-FISTA",
+        "SRT_LISTA": "iRADNet",
+        "SRT_LISTA_CP": "iRADNet",
+        "SRT_AdaLISTA": "iRADNet",
+        "SRT_AdaLFISTA": "iRADNet",
     }
+    PATH_TO_SIZE_TRANSLATION = {
+        "FISTA": 2,
+        "SRT_LISTA": 2,
+        "SRT_LISTA_CP": 1,
+        "SRT_AdaLISTA": 1,
+        "SRT_AdaLFISTA": 1,
+    }
+    PATH_TO_VARIANT_TRANSLATION = {
+        "FISTA": None,
+        "SRT_LISTA": "vanilla LISTA",
+        "SRT_LISTA_CP": "LISTA-CP",
+        "SRT_AdaLISTA": "AdaLISTA",
+        "SRT_AdaLFISTA": "AdaLFISTA",
+    }
+
     model_name = PATH_TO_MODEL_TRANSLATION.get(filename, filename)
+    variant_name = PATH_TO_VARIANT_TRANSLATION.get(filename, None)
+    full_name = f"{model_name} ({variant_name})" if variant_name else model_name
     # print(
     #     model_name,
     #     snr,
@@ -50,8 +67,9 @@ def plot_from_log(
         data=df,
         x="timestamp",
         y="NMSE",
-        label=model_name,
+        label=full_name,
         marker="o",
+        linewidth=PATH_TO_SIZE_TRANSLATION[filename],
         ax=ax,
     )
     # dashed line
@@ -61,6 +79,7 @@ def plot_from_log(
         y="density",
         linestyle=":",
         marker="^",
+        linewidth=PATH_TO_SIZE_TRANSLATION[filename],
         ax=ax2,
     )
 
