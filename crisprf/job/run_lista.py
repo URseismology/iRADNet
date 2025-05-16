@@ -25,6 +25,9 @@ from crisprf.util import (
 def train_lista(
     model_class: LISTA_base = SRT_LISTA_CP,
     device: torch.device = torch.device("cuda:0"),
+    n_layers: int = 10,
+    n_epochs: int = 20,
+    lr: float = 5e-3,
 ) -> LISTA_base:
     dataset = SRTDataset(device=device)
     shapes = dataset.shapes
@@ -35,12 +38,12 @@ def train_lista(
     radon3d = init_radon3d_mat(sample["q"], sample["rayP"], shapes, N=2, device=device)
     model: LISTA_base = model_class(
         radon3d=radon3d,
-        n_layers=10,
+        n_layers=n_layers,
         shapes=shapes,
         device=device,
     )
-    optimizer = torch.optim.Adam(model.parameters(), lr=5e-3)
-    for epoch in trange(20):
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    for epoch in trange(n_epochs):
         for batch in train_loader:
             optimizer.zero_grad()
 
@@ -124,9 +127,17 @@ def plot_difference(
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default="SRT_LISTA_CP")
-    parser.add_argument("--snr", type=float, default=None)
+
+    # train args
     parser.add_argument("--train", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--n_layers", type=int, default=10)
+    parser.add_argument("--n_epochs", type=int, default=20)
+    parser.add_argument("--lr", type=float, default=5e-3)
+
+    # eval args
     parser.add_argument("--eval", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--snr", type=float, default=None)
+
     parser.add_argument("--device", type=str, default="cuda:0")
     args = parser.parse_args()
     return args
@@ -153,6 +164,9 @@ if __name__ == "__main__":
         train_lista(
             model_class=model_class,
             device=args.device,
+            n_layers=args.n_layers,
+            n_epochs=args.n_epochs,
+            lr=args.lr,
         )
 
     if args.eval:

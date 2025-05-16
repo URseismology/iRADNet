@@ -17,7 +17,7 @@ def plot_from_log(
         df = df[df["snr"] == snr]
     else:
         df = df[df["snr"].isna()]
-    
+
     # get last record of x(0)-x(10) 11 values
     df = df.tail(11)
     # get time interval of x(n)-x(0), and convert ns to ms
