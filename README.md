@@ -35,10 +35,10 @@ ${\theta}^{(k)} = \gamma\lambda$ reduces the network to SRT-FISTA.
 
 [^LISTA]: <https://dl.acm.org/doi/10.5555/3104322.3104374> "Learning fast approximations of sparse coding"
 
-<div align="center">
+<p align="center">
 	<img src="fig/SRT_FISTA.png" width="60%" />
 	<img src="fig/iRADNet.png" width="36%" /> 
-</div>
+</p>
 
 ## Run
 
