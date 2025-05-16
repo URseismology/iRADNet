@@ -151,7 +151,7 @@ def plot_sample(
     xy_keys = sorted(list(filter(_key_filter, kwargs.keys())))
     n_plots = len(xy_keys)
 
-    fig, axes = plt.subplots(n_plots, 1, figsize=(8, 4 * n_plots), sharex=True)
+    fig, axes = plt.subplots(n_plots, 1, figsize=(8, 3 * n_plots), sharex=True)
     axes: list[plt.Axes] = [axes] if n_plots == 1 else axes.ravel()
 
     for i_ax, (ax, k) in enumerate(zip(axes, xy_keys)):
@@ -162,10 +162,10 @@ def plot_sample(
         if len(xy_keys) > 1:
             ax.text(
                 -0.1,
-                1.0,
+                1.1 if "x" in k else 1,
                 f"({chr(97 + i_ax)})",
                 transform=ax.transAxes,
-                size=20,
+                size=16,
             )
         # set key as ax title, e.g. "y_hat"
         ax.set_title(k)

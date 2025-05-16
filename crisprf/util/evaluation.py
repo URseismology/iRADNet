@@ -53,7 +53,8 @@ def eval_metrics(
         mse_0 = FID_LOSS(gt, torch.zeros_like(gt))
         nmse = mse / mse_0
         density = torch.count_nonzero(pred) / pred.numel()
-        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        if log_dir := os.path.dirname(log_path):
+            os.makedirs(log_dir, exist_ok=True)
 
         log_content = log_settings | {
             "timestamp": time_ns(),
