@@ -25,7 +25,7 @@ def run_fista(args: argparse.Namespace):
             eval_metrics(
                 pred=x_hat,
                 gt=sample["x"],
-                log_path="log/FISTA.jsonl",
+                log_path="log/eval/FISTA.jsonl",
                 log_settings={
                     "snr": args.snr,
                     "n_layers": args.n_layers,

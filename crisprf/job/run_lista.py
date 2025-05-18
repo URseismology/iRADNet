@@ -68,7 +68,7 @@ def train_lista(
             #     if epoch % 5 == 4
             #     else None
             # ),
-            log_path=f"log/train_{model_class.__name__}.jsonl",
+            log_path=f"log/train/{model_class.__name__}.jsonl",
             log_settings={
                 "epoch": epoch,
                 "loss": loss.item(),
@@ -102,7 +102,7 @@ def eval_lista(
         eval_metrics(
             x_hat,
             sample["x"],
-            log_path=f"log/{model_class.__name__}.jsonl",
+            log_path=f"log/eval/{model_class.__name__}.jsonl",
             log_settings={
                 "snr": snr,
                 "n_layers": model.n_layers,

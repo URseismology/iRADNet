@@ -3,7 +3,52 @@ import pandas as pd
 import seaborn as sns
 
 import os
-from glob import iglob
+from glob import glob
+
+# trasnlation to model name in the paper, e.g. FISTA -> SRT-FISTA
+PATH_TO_ARCH_TRANSLATION = {
+    "FISTA": "SRT-FISTA",
+    "SRT_LISTA": "iRADNet",
+    "SRT_LISTA_CP": "iRADNet",
+    "SRT_AdaLISTA": "iRADNet",
+}
+PATH_TO_VARIANT_TRANSLATION = {
+    "FISTA": None,
+    "SRT_LISTA": "vanilla LISTA",
+    "SRT_LISTA_CP": "LISTA-CP",
+    "SRT_AdaLISTA": "AdaLISTA",
+}
+
+
+def log_to_df(log_path: str, snr: float = None):
+    df = pd.read_json(log_path, lines=True)
+    if snr is None:
+        df = df[df["snr"].isna()]
+    else:
+        df = df[df["snr"] == snr]
+
+    # get last record of x(0)-x(10) 11 values
+    df = df.tail(11)
+    # get time interval of x(n)-x(0)
+    df["timestamp"] = df["timestamp"] - df["timestamp"].min()
+    # we only need x(1)-x(10) time elapsed
+    df = df.tail(10)
+
+    # convert to percentage
+    df["density"] = df["density"] * 100
+    # convert to ms
+    df["timestamp"] = df["timestamp"] // 1_000_000
+
+    # add filename and model information
+    filename = os.path.basename(log_path).split(".")[0]
+    df["filename"] = filename
+    arch_name = PATH_TO_ARCH_TRANSLATION.get(filename, filename)
+    variant_name = PATH_TO_VARIANT_TRANSLATION.get(filename, None)
+    full_name = f"{arch_name} ({variant_name})" if variant_name else arch_name
+    df["Arch"] = arch_name
+    df["Variant"] = variant_name
+    df["Model"] = full_name
+    return df
 
 
 def plot_from_log(
@@ -12,65 +57,19 @@ def plot_from_log(
     ax2: plt.Axes,
     snr: float = None,
 ):
-    df = pd.read_json(log_path, lines=True)
-    if snr is not None:
-        df = df[df["snr"] == snr]
-    else:
-        df = df[df["snr"].isna()]
-
-    # get last record of x(0)-x(10) 11 values
-    df = df.tail(11)
-    # get time interval of x(n)-x(0), and convert ns to ms
-    df["timestamp"] = df["timestamp"] - df["timestamp"].min()
-    df["timestamp"] = df["timestamp"] // 1_000_000
-    # we only need x(1)-x(10) time elapsed, because x(0) is all-zero, not useful
-    df = df.tail(10)
-
-    # convert to percentage
-    df["density"] = df["density"] * 100
-
-    # traslate to model name in the paper
-    filename = os.path.basename(log_path).split(".")[0]
-    PATH_TO_MODEL_TRANSLATION = {
-        "FISTA": "SRT-FISTA",
-        "SRT_LISTA": "iRADNet",
-        "SRT_LISTA_CP": "iRADNet",
-        "SRT_AdaLISTA": "iRADNet",
-        "SRT_AdaLFISTA": "iRADNet",
-    }
-    PATH_TO_SIZE_TRANSLATION = {
-        "FISTA": 2,
-        "SRT_LISTA": 2,
-        "SRT_LISTA_CP": 1,
-        "SRT_AdaLISTA": 1,
-        "SRT_AdaLFISTA": 1,
-    }
-    PATH_TO_VARIANT_TRANSLATION = {
-        "FISTA": None,
-        "SRT_LISTA": "vanilla LISTA",
-        "SRT_LISTA_CP": "LISTA-CP",
-        "SRT_AdaLISTA": "AdaLISTA",
-        "SRT_AdaLFISTA": "AdaLFISTA",
-    }
-
-    model_name = PATH_TO_MODEL_TRANSLATION.get(filename, filename)
-    variant_name = PATH_TO_VARIANT_TRANSLATION.get(filename, None)
-    full_name = f"{model_name} ({variant_name})" if variant_name else model_name
-    # print(
-    #     model_name,
-    #     snr,
-    #     f'{df.tail(1)["NMSE"].item():.4f}',
-    #     f'{df.tail(1)["density"].item():.2f}',
-    # )
+    df = pd.concat([log_to_df(p, snr) for p in sorted(glob(log_path))], ignore_index=True)
 
     ax = sns.lineplot(
         data=df,
         x="timestamp",
         y="NMSE",
-        label=full_name,
+        # label=full_name,
         marker="o",
-        linewidth=PATH_TO_SIZE_TRANSLATION[filename],
+        # linewidth=PATH_TO_SIZE_TRANSLATION[filename],
         ax=ax,
+        palette="cubehelix",
+        hue="Model",
+        legend=snr is None,
     )
     # dashed line
     ax2 = sns.lineplot(
@@ -79,8 +78,11 @@ def plot_from_log(
         y="density",
         linestyle=":",
         marker="^",
-        linewidth=PATH_TO_SIZE_TRANSLATION[filename],
+        # linewidth=PATH_TO_SIZE_TRANSLATION[filename],
         ax=ax2,
+        palette="cubehelix",
+        hue="Model",
+        legend=False,
     )
 
 
@@ -88,13 +90,15 @@ def plot_each_snr():
     for snr in [1, 2, 5, 10, None]:
         fig = plt.figure(figsize=(8, 4))
         ax = fig.add_subplot(111)
-        ax2 = ax.twinx()
-        ax.set_ylim(0.6, 1.1)
-        ax2.set_ylim(0, 100)
-        ax.set_xlabel("Time (ms)")
-        ax.set_ylabel("NMSE")
-        ax2.set_ylabel("Density (%)")
         ax.grid()
+
+        ax.set_xlabel("Time (ms)")
+        ax.set_ylim(0.6, 1.1)
+        ax.set_ylabel("NMSE")
+
+        ax2 = ax.twinx()
+        ax2.set_ylim(0, 100)
+        ax2.set_ylabel("Density (%)")
         ax.set_yticks(
             [0.6, 0.7, 0.8, 0.9, 1, 1.1],
         )
@@ -102,10 +106,7 @@ def plot_each_snr():
             [0, 20, 40, 60, 80, 100],
         )
 
-        for log_path in iglob("log/*.jsonl"):
-            if log_path.startswith("log/train_"):
-                continue
-            plot_from_log(log_path, ax, ax2, snr)
+        plot_from_log("log/eval/*.jsonl", ax, ax2, snr)
         plt.tight_layout()
         fig.savefig(f"fig/results_snr={snr}.pdf")
         plt.close(fig)
