@@ -11,12 +11,14 @@ PATH_TO_ARCH_TRANSLATION = {
     "SRT_LISTA": "iRADNet",
     "SRT_LISTA_CP": "iRADNet",
     "SRT_AdaLISTA": "iRADNet",
+    "SRT_AdaLFISTA": "iRADNet",
 }
 PATH_TO_VARIANT_TRANSLATION = {
     "FISTA": None,
     "SRT_LISTA": "vanilla LISTA",
     "SRT_LISTA_CP": "LISTA-CP",
     "SRT_AdaLISTA": "AdaLISTA",
+    "SRT_AdaLFISTA": "AdaLFISTA",
 }
 
 
@@ -35,7 +37,7 @@ def log_to_df(log_path: str, snr: float = None):
     df = df.tail(10)
 
     # convert to percentage
-    df["density"] = df["density"] * 100
+    df["sparsity"] = 100 - (df["density"] * 100)
     # convert to ms
     df["timestamp"] = df["timestamp"] // 1_000_000
 
@@ -65,7 +67,6 @@ def plot_from_log(
         y="NMSE",
         # label=full_name,
         marker="o",
-        # linewidth=PATH_TO_SIZE_TRANSLATION[filename],
         ax=ax,
         palette="cubehelix",
         hue="Model",
@@ -75,10 +76,9 @@ def plot_from_log(
     ax2 = sns.lineplot(
         data=df,
         x="timestamp",
-        y="density",
+        y="sparsity",
         linestyle=":",
         marker="^",
-        # linewidth=PATH_TO_SIZE_TRANSLATION[filename],
         ax=ax2,
         palette="cubehelix",
         hue="Model",
@@ -97,13 +97,13 @@ def plot_each_snr():
         ax.set_ylabel("NMSE")
 
         ax2 = ax.twinx()
-        ax2.set_ylim(0, 100)
-        ax2.set_ylabel("Density (%)")
+        ax2.set_ylim(100, 0)
+        ax2.set_ylabel("Sparsity (%)")
         ax.set_yticks(
             [0.6, 0.7, 0.8, 0.9, 1, 1.1],
         )
         ax2.set_yticks(
-            [0, 20, 40, 60, 80, 100],
+            [100, 80, 60, 40, 20, 0],
         )
 
         plot_from_log("log/eval/*.jsonl", ax, ax2, snr)
