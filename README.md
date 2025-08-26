@@ -56,12 +56,19 @@ python crisprf/job/run_fista.py --eval --model SRT_LISTA_CP
 ## Cite this work
 
 ```bibtex
-@inproceedings{
-	wang2025deep,
-	title={Deep Algorithm Unrolling for Seismic Migration},
-	author={Meng Wang and Tolulope Olugboji},
-	booktitle={2025 IEEE Conference on Computational Imaging Using Synthetic Apertures},
-	year={2025},
-	url={https://openreview.net/forum?id=hBuAes6QTt}
+@inproceedings{wang_deep_2025,
+	address = {College Park, MD, USA},
+	title = {Deep {Algorithm} {Unrolling} for {Seismic} {Migration}},
+	copyright = {https://doi.org/10.15223/policy-029},
+	isbn = {9798331515102},
+	url = {https://ieeexplore.ieee.org/document/11091556/},
+	doi = {10.1109/CISA64343.2025.11091556},
+	urldate = {2025-08-26},
+	booktitle = {2025 {IEEE} {Conference} on {Computational} {Imaging} {Using} {Synthetic} {Apertures} ({CISA})},
+	publisher = {IEEE},
+	author = {Wang, Meng and Olugboji, Tolulope},
+	month = jun,
+	year = {2025},
+	pages = {1--5},
 }
 ```
